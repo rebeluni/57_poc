@@ -36,6 +36,22 @@ function formatIST(dateIso: string): string {
   );
 }
 
+function getAppBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/+$/, '')}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/\/+$/, '')}`;
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+  }
+  return 'http://localhost:3000';
+}
+
 async function sendTelegramMessage(botToken: string, chatId: number | string, text: string) {
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -88,13 +104,14 @@ export async function POST(req: NextRequest) {
   const chatId = message.chat.id;
   const chatIdStr = String(chatId);
   const text = message.text.trim();
+  const baseUrl = getAppBaseUrl();
 
   // 1. /start command
   if (text === '/start') {
     await sendTelegramMessage(
       botToken,
       chatId,
-      `Welcome to Physique 57 Support Desk! 🏋️‍♀️\n\nPlease link your employee account:\n/link your.email@physique57.in\n\nCommands:\n• /link <email> - Connect your work account\n• /status <REQ-ID> - Check ticket status\n• /help - Display instructions`
+      `Welcome to Physique 57 Support Desk! 🏋️‍♀️\n\nPlease link your employee account:\n/link ananya.sharma@physique57.in\n\nCommands:\n• /link <email> - Connect your work account\n• /status <REQ-ID> - Check ticket status & SLA\n• Any message - Create a support ticket automatically\n\n🌐 Web App Portal:\n${baseUrl}`
     );
     return NextResponse.json({ ok: true });
   }
@@ -104,7 +121,7 @@ export async function POST(req: NextRequest) {
     await sendTelegramMessage(
       botToken,
       chatId,
-      `Physique 57 Support Desk Commands:\n• /link <email> - Link your Telegram account with your work email\n• /status <REQ-ID> - Check the status of your ticket\n• Send any message - Automatically creates a support ticket`
+      `Physique 57 Support Desk Commands:\n• /link <email> - Link your Telegram account with your work email (e.g. /link ananya.sharma@physique57.in)\n• /status <REQ-ID> - Check the status of your ticket\n• Send any message - Automatically creates a support ticket\n\n🌐 Web App Portal:\n${baseUrl}`
     );
     return NextResponse.json({ ok: true });
   }
@@ -130,7 +147,7 @@ export async function POST(req: NextRequest) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        `Email '${rawEmail}' was not found in the employee directory. Please use your registered Physique 57 work email.`
+        `Email '${rawEmail}' was not found in the employee directory. Please use your registered Physique 57 work email (e.g. ananya.sharma@physique57.in).`
       );
       return NextResponse.json({ ok: true });
     }
@@ -161,12 +178,12 @@ export async function POST(req: NextRequest) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        'Please link your account first: /link your.email@physique57mumbai.com'
+        'Please link your account first:\n/link ananya.sharma@physique57.in'
       );
       return NextResponse.json({ ok: true });
     }
 
-    const ticketNumber = match[1].toUpperCase();
+    const ticketNumber = match[0].toUpperCase();
     const ticket = await getTicketByNumber(ticketNumber);
 
     if (!ticket) {
@@ -193,11 +210,12 @@ export async function POST(req: NextRequest) {
 
     const slaTarget = formatIST(ticket.resolve_due_at);
     const assigneeName = ticket.assignee ? ticket.assignee.name : 'Human Triage Queue';
+    const trackUrl = `${baseUrl}/track?id=${encodeURIComponent(ticket.ticket_number)}&email=${encodeURIComponent(linkedAccount.employee_email)}`;
 
     await sendTelegramMessage(
       botToken,
       chatId,
-      `Ticket: ${ticket.ticket_number}\nStatus: ${ticket.status.toUpperCase()}\nAssignee: ${assigneeName}\nSLA target: ${slaTarget}`
+      `🎫 Ticket: ${ticket.ticket_number}\n• Status: ${ticket.status.toUpperCase()}\n• Assignee: ${assigneeName}\n• SLA Target: ${slaTarget}\n\n🔗 View full history & timeline in Web App:\n${trackUrl}`
     );
     return NextResponse.json({ ok: true });
   }
@@ -208,7 +226,7 @@ export async function POST(req: NextRequest) {
     await sendTelegramMessage(
       botToken,
       chatId,
-      'Please link your account first: /link your.email@physique57mumbai.com'
+      'Please link your account first:\n/link ananya.sharma@physique57.in'
     );
     return NextResponse.json({ ok: true });
   }
@@ -242,7 +260,8 @@ export async function POST(req: NextRequest) {
     );
 
     const istTimestamp = formatIST(intakeResult.ticket.resolve_due_at);
-    const replyText = `Ticket created: ${intakeResult.ticket.ticket_number} | Category: ${intakeResult.ticket.category} | Priority: ${intakeResult.ticket.priority} | SLA target: ${istTimestamp}`;
+    const trackUrl = `${baseUrl}/track?id=${encodeURIComponent(intakeResult.ticket.ticket_number)}&email=${encodeURIComponent(senderEmail)}`;
+    const replyText = `✅ Ticket Created: ${intakeResult.ticket.ticket_number}\n\n• Category: ${intakeResult.ticket.category}\n• Priority: ${intakeResult.ticket.priority}\n• SLA Target: ${istTimestamp}\n\n🔗 Track live progress in Web App:\n${trackUrl}`;
 
     await sendTelegramMessage(botToken, chatId, replyText);
   } catch (err) {

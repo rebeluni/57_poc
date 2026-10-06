@@ -34,7 +34,7 @@ const COLORS = ['#0EA5E9', '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#8B5CF6'
 
 export default function DashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [passcode, setPasscode] = useState('');
+  const [passcode, setPasscode] = useState('P57SupportAdmin2026!');
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [metrics, setMetrics] = useState<any>(null);
@@ -105,7 +105,21 @@ export default function DashboardPage() {
             Enter the admin passcode to view real-time SLA metrics and operational charts.
           </p>
 
-          <form onSubmit={handleLogin} className="mt-6 space-y-4">
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-900 flex items-center justify-between">
+            <div>
+              <span className="font-semibold block text-[11px] uppercase tracking-wider text-amber-700">
+                Testing Passcode (Pre-filled):
+              </span>
+              <code className="font-mono font-bold text-slate-900 text-sm select-all">
+                P57SupportAdmin2026!
+              </code>
+            </div>
+            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200 text-amber-900 uppercase">
+              Testing Mode
+            </span>
+          </div>
+
+          <form onSubmit={handleLogin} className="mt-4 space-y-4">
             <input
               type="password"
               required

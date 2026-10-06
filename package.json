@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx tsx test/engine.test.ts"
+    "test": "npx tsx test/engine.test.ts",
+    "telegram:webhook": "node scripts/set-telegram-webhook.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",

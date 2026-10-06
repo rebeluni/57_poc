@@ -8,17 +8,37 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Maximize2,
   FileCode,
-  Sparkles,
+  Layers,
+  Activity,
   Server,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
 } from 'lucide-react';
+
+const OVERVIEW_WORKFLOW_MERMAID = `flowchart LR
+    O1["Intake<br/>(any channel)"] --> O2["Categorise<br/>(rules, AI, triage)"]
+    O2 --> O3["Prioritise and<br/>set SLA"]
+    O3 --> O4["Route<br/>to owner"]
+    O4 --> O5["Work<br/>(Open to Active)"]
+    O5 --> O6["Escalate if<br/>SLA risk"]
+    O6 --> O7["Resolve and<br/>finalize"]
+    O7 --> O8["Archive and<br/>metrics"]
+
+    classDef step fill:#F0F9FF,stroke:#0284C7,stroke-width:2px;
+    classDef esc fill:#FEE2E2,stroke:#DC2626,stroke-width:2px;
+    classDef done fill:#ECFDF5,stroke:#059669,stroke-width:2px;
+
+    class O1,O2,O3,O4,O5 step;
+    class O6 esc;
+    class O7,O8 success;`;
 
 const MAIN_WORKFLOW_MERMAID = `flowchart TD
     %% -------------------------------------------------------------
     %% STAGE 1: INTAKE & NORMALISATION
     %% -------------------------------------------------------------
-    subgraph INTAKE ["1. OMNI-CHANNEL INTAKE & NORMALISATION"]
+    subgraph INTAKE ["Stage 1 – Omni-channel intake"]
         C1["WhatsApp Business API"] --> ADAPTER["OmniChannel Ingestion Adapter<br/>(/api/intake)"]
         C2["Email (Gmail/Outlook)"] --> ADAPTER
         C3["Web Intake Form"] --> ADAPTER
@@ -38,7 +58,7 @@ const MAIN_WORKFLOW_MERMAID = `flowchart TD
     %% -------------------------------------------------------------
     %% STAGE 2: CATEGORISATION & TRIAGE
     %% -------------------------------------------------------------
-    subgraph CATEGORISATION ["2. CATEGORISATION ENGINE"]
+    subgraph CATEGORISATION ["Stage 2 – Categorisation engine"]
         GEN_ID --> RULE_ENGINE["Rule Engine: Weighted Keyword Scoring<br/>(Payroll, HR, IT, Operations)"]
         RULE_ENGINE --> CONF_CHECK{"Confidence &ge; 0.60?"}
         CONF_CHECK -- "Yes" --> ASSIGN_CAT["Assign Top Category"]
@@ -53,7 +73,7 @@ const MAIN_WORKFLOW_MERMAID = `flowchart TD
     %% -------------------------------------------------------------
     %% STAGE 3: PRIORITY MATRIX & SLA DATES
     %% -------------------------------------------------------------
-    subgraph PRIORITY_SLA ["3. PRIORITY MATRIX & SLA TARGETS"]
+    subgraph PRIORITY_SLA ["Stage 3 – Priority and SLA"]
         ASSIGN_CAT --> PRIORITY_MATRIX{"Priority Matrix<br/>(Keywords + Urgent Checkbox)"}
         ASSIGN_AI_CAT --> PRIORITY_MATRIX
         TRIAGE_Q --> PRIORITY_MATRIX
@@ -73,7 +93,7 @@ const MAIN_WORKFLOW_MERMAID = `flowchart TD
     %% -------------------------------------------------------------
     %% STAGE 4: SMART ROUTING & ASSIGNMENT
     %% -------------------------------------------------------------
-    subgraph ROUTING ["4. LOAD-BALANCED ROUTING"]
+    subgraph ROUTING ["Stage 4 – Routing"]
         SLA_STAMPS --> ROUTE_CHECK{"Category = Other?"}
         ROUTE_CHECK -- "Yes" --> UNASSIGNED["Leave Unassigned<br/>(Human Triage Queue)"]
         ROUTE_CHECK -- "No" --> DEPT_MEMBERS["Query Active Dept Team Members"]
@@ -85,15 +105,19 @@ const MAIN_WORKFLOW_MERMAID = `flowchart TD
     %% -------------------------------------------------------------
     %% STAGE 5: STATE MACHINE & ESCALATION LADDER
     %% -------------------------------------------------------------
-    subgraph LIFECYCLE ["5. STATE MACHINE & ESCALATION LADDER"]
+    subgraph LIFECYCLE ["Stage 5 – State machine and escalation"]
         LEAST_OPEN --> STATE_OPEN["State: OPEN<br/>(Response SLA clock ticking)"]
         ESC_LEAD --> STATE_OPEN
         UNASSIGNED --> STATE_OPEN
 
         STATE_OPEN --> WATCHDOG{"SLA Watchdog Checks<br/>(Admin load & /api/cron/escalate)"}
-        WATCHDOG -- "P1 Immediate OR 80% elapsed" --> L1["Escalation L1: Warning<br/>Notify Owner"]
-        WATCHDOG -- "100% SLA elapsed (Breached)" --> L2["Escalation L2: SLA Breach<br/>Notify Team Lead"]
-        WATCHDOG -- "150% SLA elapsed" --> L3["Escalation L3: Critical Breach<br/>Notify Department Head"]
+
+        WATCHDOG -- "80% of SLA" --> L1["Escalation L1 (80% SLA)<br/>Warning: Notify Owner"]
+        WATCHDOG -- "100% of SLA or P1 Immediate" --> L2["Escalation L2 (100% SLA / P1)<br/>Breach: Notify Team Lead"]
+        WATCHDOG -- "150% of SLA" --> L3["Escalation L3 (150% SLA)<br/>Critical: Notify Dept Head"]
+
+        L1 ~~~ L2
+        L2 ~~~ L3
 
         STATE_OPEN -- "Owner accepts ticket" --> STATE_ACTIVE["State: ACTIVE<br/>(Records first_response_at; Resolution SLA runs)"]
         STATE_ACTIVE -- "Issue resolved + mandatory note" --> STATE_FINAL["State: FINALIZED<br/>(Closes SLA clock; records resolved_at)"]
@@ -112,6 +136,7 @@ const MAIN_WORKFLOW_MERMAID = `flowchart TD
         STATE_FINAL -. "write event" .-> AUDIT_LOG
         L1 -. "write alert" .-> AUDIT_LOG
         L2 -. "write alert" .-> AUDIT_LOG
+        L3 -. "write alert" .-> AUDIT_LOG
         ARCHIVED -. "aggregate" .-> DASHBOARD["Executive Metrics Dashboard (/dashboard)"]
     end
 
@@ -127,7 +152,7 @@ const MAIN_WORKFLOW_MERMAID = `flowchart TD
     class STATE_OPEN,STATE_ACTIVE,STATE_FINAL state;
     class L1,L2,L3 breach;`;
 
-const ARCH_MERMAID = `flowchart LR
+const ARCH_MERMAID = `flowchart TB
     subgraph CHANNELS ["External Ingestion Sources"]
         W["WhatsApp Cloud API"]
         G["Gmail / Outlook Webhooks"]
@@ -168,23 +193,124 @@ const ARCH_MERMAID = `flowchart LR
     classDef tech fill:#F8FAFC,stroke:#0F172A,stroke-width:2px;
     class CHANNELS,INGESTION,STORAGE,CONSUMERS tech;`;
 
+// Dynamic loader that loads Mermaid in the browser without Webpack bundling cytoscape
+async function loadMermaid() {
+  if (typeof window === 'undefined') return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const win = window as any;
+  if (win.mermaid) return win.mermaid;
+
+  return new Promise<any>((resolve, reject) => {
+    const existing = document.getElementById('mermaid-cdn-script') as HTMLScriptElement | null;
+    if (existing) {
+      if (win.mermaid) {
+        resolve(win.mermaid);
+      } else {
+        existing.addEventListener('load', () => resolve(win.mermaid));
+        existing.addEventListener('error', reject);
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'mermaid-cdn-script';
+    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
+    script.async = true;
+    script.onload = () => {
+      resolve(win.mermaid);
+    };
+    script.onerror = (e) => reject(new Error('Failed to load Mermaid from CDN: ' + e));
+    document.head.appendChild(script);
+  });
+}
+
+function ZoomControls({
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onReset,
+}: {
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 p-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 shadow-2xs">
+      <button
+        type="button"
+        onClick={onZoomOut}
+        disabled={zoom <= 0.4}
+        className="p-1 rounded hover:bg-white text-slate-600 hover:text-slate-900 disabled:opacity-30 transition-colors"
+        title="Zoom Out"
+        aria-label="Zoom Out"
+      >
+        <ZoomOut className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-[11px] font-mono font-medium px-1.5 text-slate-700 min-w-[42px] text-center">
+        {Math.round(zoom * 100)}%
+      </span>
+      <button
+        type="button"
+        onClick={onZoomIn}
+        disabled={zoom >= 2.5}
+        className="p-1 rounded hover:bg-white text-slate-600 hover:text-slate-900 disabled:opacity-30 transition-colors"
+        title="Zoom In"
+        aria-label="Zoom In"
+      >
+        <ZoomIn className="w-3.5 h-3.5" />
+      </button>
+      {zoom !== 1 && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-white hover:bg-slate-200 text-slate-700 shadow-2xs transition-colors ml-0.5"
+          title="Reset to normal size"
+        >
+          <RotateCcw className="w-3 h-3 text-slate-500" />
+          <span>Reset</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function WorkflowPage() {
+  const overviewDiagramRef = useRef<HTMLDivElement>(null);
   const mainDiagramRef = useRef<HTMLDivElement>(null);
   const archDiagramRef = useRef<HTMLDivElement>(null);
 
+  const [overviewZoom, setOverviewZoom] = useState(1);
+  const [mainZoom, setMainZoom] = useState(1);
+  const [archZoom, setArchZoom] = useState(1);
+
+  const [overviewCopied, setOverviewCopied] = useState(false);
   const [mainCopied, setMainCopied] = useState(false);
   const [archCopied, setArchCopied] = useState(false);
+
+  const [showOverviewSource, setShowOverviewSource] = useState(false);
   const [showMainSource, setShowMainSource] = useState(false);
   const [showArchSource, setShowArchSource] = useState(false);
+
   const [renderError, setRenderError] = useState<string | null>(null);
+
+  const handleZoom = (
+    setter: React.Dispatch<React.SetStateAction<number>>,
+    delta: number
+  ) => {
+    setter((prev) => {
+      const next = Math.round((prev + delta) * 10) / 10;
+      return Math.min(Math.max(next, 0.4), 2.5);
+    });
+  };
 
   useEffect(() => {
     let mounted = true;
 
     async function renderMermaid() {
       try {
-        const mermaidModule = await import('mermaid');
-        const mermaid = mermaidModule.default;
+        const mermaid = await loadMermaid();
+        if (!mermaid || !mounted) return;
 
         mermaid.initialize({
           startOnLoad: false,
@@ -196,6 +322,11 @@ export default function WorkflowPage() {
             htmlLabels: true,
           },
         });
+
+        if (overviewDiagramRef.current && mounted) {
+          const { svg } = await mermaid.render('mermaid-overview-diagram', OVERVIEW_WORKFLOW_MERMAID);
+          overviewDiagramRef.current.innerHTML = svg;
+        }
 
         if (mainDiagramRef.current && mounted) {
           const { svg } = await mermaid.render('mermaid-main-diagram', MAIN_WORKFLOW_MERMAID);
@@ -228,7 +359,10 @@ export default function WorkflowPage() {
     const svgEl = containerRef.current.querySelector('svg');
     if (!svgEl) return;
 
-    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const clonedSvg = svgEl.cloneNode(true) as SVGSVGElement;
+    clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+    const svgData = new XMLSerializer().serializeToString(clonedSvg);
     const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -245,14 +379,25 @@ export default function WorkflowPage() {
     const svgEl = containerRef.current.querySelector('svg');
     if (!svgEl) return;
 
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const canvas = document.createElement('canvas');
-    const svgSize = svgEl.getBoundingClientRect();
+    const clonedSvg = svgEl.cloneNode(true) as SVGSVGElement;
+    clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-    // Scale up for high-res output
+    const svgRect = svgEl.getBoundingClientRect();
+    const viewBox = svgEl.viewBox?.baseVal;
+
+    const intrinsicWidth = viewBox && viewBox.width > 0 ? viewBox.width : (svgRect.width || 900);
+    const intrinsicHeight = viewBox && viewBox.height > 0 ? viewBox.height : (svgRect.height || 600);
+
+    clonedSvg.setAttribute('width', `${intrinsicWidth}`);
+    clonedSvg.setAttribute('height', `${intrinsicHeight}`);
+
+    const svgData = new XMLSerializer().serializeToString(clonedSvg);
+    const canvas = document.createElement('canvas');
+
+    // Scale up by 2x for crisp, legible text
     const scale = 2;
-    canvas.width = svgSize.width * scale;
-    canvas.height = svgSize.height * scale;
+    canvas.width = Math.round(intrinsicWidth * scale);
+    canvas.height = Math.round(intrinsicHeight * scale);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -284,7 +429,7 @@ export default function WorkflowPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-      {/* Header */}
+      {/* Page Header */}
       <div>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium tracking-wide uppercase mb-3">
           <GitBranch className="w-3.5 h-3.5 text-sky-500" />
@@ -304,19 +449,129 @@ export default function WorkflowPage() {
         </div>
       )}
 
-      {/* Diagram 1: End-to-End Operational Lifecycle Workflow */}
+      {/* Diagram 1: Overview Flow */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-sky-600 block">
-              Core Operational Logic
-            </span>
-            <h2 className="font-serif-luxury text-xl font-semibold text-slate-900 mt-0.5">
-              1. Request Triage, Escalation & State Lifecycle
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-sky-50 text-sky-600">
+                <Layers className="w-4 h-4" />
+              </span>
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-sky-600 block">
+                High-Level Pipeline
+              </span>
+            </div>
+            <h2 className="font-serif-luxury text-xl font-semibold text-slate-900 mt-1">
+              Overview
             </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Compact 8-stage lifecycle from omni-channel intake to final archive.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <ZoomControls
+              zoom={overviewZoom}
+              onZoomIn={() => handleZoom(setOverviewZoom, 0.2)}
+              onZoomOut={() => handleZoom(setOverviewZoom, -0.2)}
+              onReset={() => setOverviewZoom(1)}
+            />
+            <button
+              onClick={() => downloadSvg(overviewDiagramRef, 'physique57-workflow-overview.svg')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span>Download SVG</span>
+            </button>
+            <button
+              onClick={() => downloadPng(overviewDiagramRef, 'physique57-workflow-overview.png')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span>Download PNG</span>
+            </button>
+            <button
+              onClick={() => copyToClipboard(OVERVIEW_WORKFLOW_MERMAID, setOverviewCopied)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors shadow-2xs"
+            >
+              {overviewCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{overviewCopied ? 'Copied' : 'Copy Source'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Overview Diagram SVG Container */}
+        <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-auto min-h-[160px] flex items-center justify-center">
+          {renderError ? (
+            <div className="w-full space-y-2 p-2">
+              <pre className="p-4 rounded-xl bg-slate-900 text-slate-200 text-xs font-mono overflow-x-auto max-h-[300px] leading-relaxed text-left">
+                {OVERVIEW_WORKFLOW_MERMAID}
+              </pre>
+            </div>
+          ) : (
+            <div
+              ref={overviewDiagramRef}
+              style={{
+                transform: `scale(${overviewZoom})`,
+                transformOrigin: 'top center',
+                transition: 'transform 0.15s ease-out',
+                width: overviewZoom > 1 ? `${overviewZoom * 100}%` : '100%',
+              }}
+              className="w-full text-center"
+            />
+          )}
+        </div>
+
+        {/* Collapsible Source Code */}
+        <div className="border-t border-slate-100 pt-4">
+          <button
+            onClick={() => setShowOverviewSource(!showOverviewSource)}
+            className="flex items-center justify-between w-full text-xs font-semibold text-slate-600 hover:text-slate-900"
+          >
+            <span className="flex items-center gap-1.5">
+              <FileCode className="w-3.5 h-3.5 text-slate-400" />
+              <span>Mermaid Overview Source</span>
+            </span>
+            {showOverviewSource ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {showOverviewSource && (
+            <div className="mt-3 relative">
+              <pre className="p-4 rounded-xl bg-slate-900 text-slate-200 text-xs font-mono overflow-x-auto max-h-60 leading-relaxed">
+                {OVERVIEW_WORKFLOW_MERMAID}
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Diagram 2: Detailed logic */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-indigo-50 text-indigo-600">
+                <Activity className="w-4 h-4" />
+              </span>
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 block">
+                Detailed logic
+              </span>
+            </div>
+            <h2 className="font-serif-luxury text-xl font-semibold text-slate-900 mt-1">
+              Request Triage, Escalation & State Lifecycle
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Complete deterministic rules, AI confidence routing, SLA calculations, and multi-tier escalation ladders.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ZoomControls
+              zoom={mainZoom}
+              onZoomIn={() => handleZoom(setMainZoom, 0.2)}
+              onZoomOut={() => handleZoom(setMainZoom, -0.2)}
+              onReset={() => setMainZoom(1)}
+            />
             <button
               onClick={() => downloadSvg(mainDiagramRef, 'physique57-people-desk-workflow.svg')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors shadow-2xs"
@@ -341,8 +596,8 @@ export default function WorkflowPage() {
           </div>
         </div>
 
-        {/* Diagram SVG Container */}
-        <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-x-auto min-h-[500px] flex items-center justify-center">
+        {/* Detailed Logic Diagram SVG Container */}
+        <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-auto min-h-[500px] flex items-center justify-center">
           {renderError ? (
             <div className="w-full space-y-2 p-2">
               <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
@@ -353,7 +608,16 @@ export default function WorkflowPage() {
               </pre>
             </div>
           ) : (
-            <div ref={mainDiagramRef} className="w-full text-center" />
+            <div
+              ref={mainDiagramRef}
+              style={{
+                transform: `scale(${mainZoom})`,
+                transformOrigin: 'top center',
+                transition: 'transform 0.15s ease-out',
+                width: mainZoom > 1 ? `${mainZoom * 100}%` : '100%',
+              }}
+              className="w-full text-center"
+            />
           )}
         </div>
 
@@ -380,25 +644,43 @@ export default function WorkflowPage() {
         </div>
       </div>
 
-      {/* Diagram 2: Production Real-World Integration Architecture */}
+      {/* Diagram 3: Production Real-World Integration Architecture */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 block">
-              Production Architecture Specification
-            </span>
-            <h2 className="font-serif-luxury text-xl font-semibold text-slate-900 mt-0.5">
-              2. Production Integration Architecture (Simulated in this Prototype)
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-slate-100 text-slate-700">
+                <Server className="w-4 h-4" />
+              </span>
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500 block">
+                Production Architecture Specification
+              </span>
+            </div>
+            <h2 className="font-serif-luxury text-xl font-semibold text-slate-900 mt-1">
+              Production Integration Architecture
             </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <ZoomControls
+              zoom={archZoom}
+              onZoomIn={() => handleZoom(setArchZoom, 0.2)}
+              onZoomOut={() => handleZoom(setArchZoom, -0.2)}
+              onReset={() => setArchZoom(1)}
+            />
             <button
               onClick={() => downloadSvg(archDiagramRef, 'physique57-production-architecture.svg')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors shadow-2xs"
             >
               <Download className="w-3.5 h-3.5 text-slate-400" />
               <span>Download SVG</span>
+            </button>
+            <button
+              onClick={() => downloadPng(archDiagramRef, 'physique57-production-architecture.png')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span>Download PNG</span>
             </button>
             <button
               onClick={() => copyToClipboard(ARCH_MERMAID, setArchCopied)}
@@ -410,8 +692,8 @@ export default function WorkflowPage() {
           </div>
         </div>
 
-        {/* Diagram SVG Container */}
-        <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-x-auto min-h-[300px] flex items-center justify-center">
+        {/* Architecture Diagram SVG Container */}
+        <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-auto min-h-[300px] flex items-center justify-center">
           {renderError ? (
             <div className="w-full space-y-2 p-2">
               <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
@@ -422,12 +704,26 @@ export default function WorkflowPage() {
               </pre>
             </div>
           ) : (
-            <div ref={archDiagramRef} className="w-full text-center" />
+            <div
+              ref={archDiagramRef}
+              style={{
+                transform: `scale(${archZoom})`,
+                transformOrigin: 'top center',
+                transition: 'transform 0.15s ease-out',
+                width: archZoom > 1 ? `${archZoom * 100}%` : '100%',
+              }}
+              className="w-full text-center"
+            />
           )}
         </div>
 
+        {/* Required Caption */}
+        <p className="text-center text-xs text-slate-500 font-medium italic">
+          Production design, simulated in this prototype
+        </p>
+
         {/* Collapsible Source Code */}
-        <div className="border-t border-slate-100 pt-4">
+        <div className="border-t border-slate-100 pt-4 mt-6">
           <button
             onClick={() => setShowArchSource(!showArchSource)}
             className="flex items-center justify-between w-full text-xs font-semibold text-slate-600 hover:text-slate-900"

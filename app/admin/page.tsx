@@ -40,7 +40,7 @@ import { Ticket, TicketEvent, TeamMember, NotificationItem } from '@/lib/types';
 
 export default function AdminConsolePage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [passcode, setPasscode] = useState('');
+  const [passcode, setPasscode] = useState('P57SupportAdmin2026!');
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Queue state
@@ -321,7 +321,21 @@ export default function AdminConsolePage() {
             Enter the shared management passcode to access live queues, dispatch controls, and SLA escalations.
           </p>
 
-          <form onSubmit={handleLogin} className="mt-6 space-y-4">
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-900 flex items-center justify-between">
+            <div>
+              <span className="font-semibold block text-[11px] uppercase tracking-wider text-amber-700">
+                Testing Passcode (Pre-filled):
+              </span>
+              <code className="font-mono font-bold text-slate-900 text-sm select-all">
+                P57SupportAdmin2026!
+              </code>
+            </div>
+            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200 text-amber-900 uppercase">
+              Testing Mode
+            </span>
+          </div>
+
+          <form onSubmit={handleLogin} className="mt-4 space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Passcode
