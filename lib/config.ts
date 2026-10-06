@@ -7,7 +7,7 @@ export type DepartmentCategory = 'HR' | 'IT' | 'Payroll' | 'Operations' | 'Other
 export type TicketPriority = 'P1' | 'P2' | 'P3' | 'P4';
 export type TicketStatus = 'open' | 'active' | 'finalized';
 export type EscalationLevel = 'L0' | 'L1' | 'L2' | 'L3';
-export type TicketChannel = 'Web Form' | 'Email' | 'WhatsApp' | 'SMS' | 'Instagram DM' | 'Intercom Chat';
+export type TicketChannel = 'Web Form' | 'Email' | 'WhatsApp' | 'SMS' | 'Instagram DM' | 'Intercom Chat' | 'Telegram';
 
 export interface KeywordRule {
   keyword: string;
@@ -278,6 +278,7 @@ export const SUPPORTED_CHANNELS: TicketChannel[] = [
   'SMS',
   'Instagram DM',
   'Intercom Chat',
+  'Telegram',
 ];
 
 // ------------------------------------------------------------------------------

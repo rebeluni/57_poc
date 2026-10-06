@@ -106,6 +106,37 @@ curl -X POST http://localhost:3000/api/intake \
 
 ---
 
+## 🤖 Optional Telegram Channel Bot Integration
+
+The system includes a fully functional, optional Telegram omnichannel bot integration that routes real-time chat messages through the exact same triaging, prioritization, and SLA engine as web forms and emails.
+
+### 4-Step Setup Guide:
+1. **Create Bot in @BotFather**:
+   * Open Telegram and search for [`@BotFather`](https://t.me/BotFather).
+   * Send `/newbot`, name your bot (e.g., *Physique 57 Support*), and choose a unique username ending in `bot` (e.g., `p57_support_bot`).
+   * Copy the generated HTTP API Bot Token.
+2. **Set Environment Variables**:
+   * Add the following to `.env.local` (local) or **Vercel Settings → Environment Variables** (production):
+     ```env
+     TELEGRAM_BOT_TOKEN="your-telegram-bot-token"
+     TELEGRAM_WEBHOOK_SECRET="a-random-secret-string-of-your-choice"
+     ```
+3. **Register the Webhook**:
+   * Run the helper script to register your public HTTPS endpoint with Telegram:
+     ```bash
+     node scripts/set-telegram-webhook.mjs
+     ```
+   * *(Note: Telegram requires a public HTTPS URL. For local testing, expose port 3000 via a tunnel like ngrok or run on your deployed Vercel URL)*.
+4. **Chat & Submit Tickets**:
+   * Open your bot in Telegram and send `/start`.
+   * Link your employee account: `/link ananya.sharma@physique57.in` (validated against the HR directory).
+   * Send any natural language message (e.g., *"Studio 2 AC is leaking water near barre"*).
+   * The bot immediately triages the issue, assigns priority & SLA, and replies with:
+     `Ticket created: REQ-YYYY-NNNN | Category: Operations | Priority: P2 | SLA target: <IST timestamp>`
+   * Query status anytime: `/status REQ-YYYY-NNNN`
+
+---
+
 ## 🔒 Security & Route Protection
 
 * **Public Routes**:

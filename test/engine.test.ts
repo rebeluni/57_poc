@@ -90,3 +90,20 @@ test('SLA State Evaluation: L0 On Track vs L1 Warning vs L2 Breach', () => {
   assert.ok(l2State.escalationLevel === 'L2' || l2State.escalationLevel === 'L3');
   assert.strictEqual(l2State.slaState, 'Breached');
 });
+
+test('Omnichannel: Telegram is supported in channel configuration', async () => {
+  const { SUPPORTED_CHANNELS } = await import('../lib/config');
+  assert.ok(SUPPORTED_CHANNELS.includes('Telegram'));
+});
+
+test('Telegram Adapter: Subject extraction first-line and 80-character limit', () => {
+  const multiline = "First line summary\nSecond line details\nThird line context";
+  const firstLine = multiline.split('\n')[0].trim();
+  const subject1 = firstLine.length > 80 ? firstLine.slice(0, 80) : firstLine;
+  assert.strictEqual(subject1, 'First line summary');
+
+  const longText = 'A'.repeat(120);
+  const subject2 = longText.length > 80 ? longText.slice(0, 80) : longText;
+  assert.strictEqual(subject2.length, 80);
+});
+

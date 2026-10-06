@@ -181,6 +181,14 @@ export interface TicketRepository {
     archivedCount: number;
   }>;
   getDashboardMetrics(): Promise<DashboardMetrics>;
+  getTelegramLink(chatId: string): Promise<TelegramLink | null>;
+  setTelegramLink(chatId: string, employeeEmail: string): Promise<TelegramLink>;
+}
+
+export interface TelegramLink {
+  chat_id: string;
+  employee_email: string;
+  created_at: string;
 }
 
 // ==============================================================================
@@ -193,6 +201,7 @@ interface MemoryDatabase {
   tickets: Ticket[];
   events: TicketEvent[];
   notifications: NotificationItem[];
+  telegramLinks: TelegramLink[];
   nextTicketSeq: number;
 }
 
@@ -209,6 +218,7 @@ function getMemoryDb(): MemoryDatabase {
       tickets: JSON.parse(JSON.stringify(INITIAL_TICKETS)),
       events: JSON.parse(JSON.stringify(INITIAL_EVENTS)),
       notifications: JSON.parse(JSON.stringify(INITIAL_NOTIFICATIONS)),
+      telegramLinks: [],
       nextTicketSeq: 15,
     };
   }
@@ -825,6 +835,28 @@ class MemoryRepo implements TicketRepository {
       complianceByDept,
       needsAttention,
     };
+  }
+
+  async getTelegramLink(chatId: string): Promise<TelegramLink | null> {
+    const db = getMemoryDb();
+    const link = db.telegramLinks.find((l) => l.chat_id === chatId);
+    return link || null;
+  }
+
+  async setTelegramLink(chatId: string, employeeEmail: string): Promise<TelegramLink> {
+    const db = getMemoryDb();
+    const existingIndex = db.telegramLinks.findIndex((l) => l.chat_id === chatId);
+    const link: TelegramLink = {
+      chat_id: chatId,
+      employee_email: employeeEmail,
+      created_at: new Date().toISOString(),
+    };
+    if (existingIndex >= 0) {
+      db.telegramLinks[existingIndex] = link;
+    } else {
+      db.telegramLinks.push(link);
+    }
+    return link;
   }
 }
 
@@ -1587,6 +1619,37 @@ class SupabaseRepo implements TicketRepository {
       needsAttention,
     };
   }
+
+  async getTelegramLink(chatId: string): Promise<TelegramLink | null> {
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from('telegram_links')
+      .select('*')
+      .eq('chat_id', chatId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to get telegram link from Supabase: ${error.message}`);
+    }
+    return data || null;
+  }
+
+  async setTelegramLink(chatId: string, employeeEmail: string): Promise<TelegramLink> {
+    const supabase = this.getClient();
+    const { data, error } = await supabase
+      .from('telegram_links')
+      .upsert({
+        chat_id: chatId,
+        employee_email: employeeEmail,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new Error(`Failed to save telegram link to Supabase: ${error?.message}`);
+    }
+    return data;
+  }
 }
 
 // Single instance creation
@@ -1701,4 +1764,15 @@ export async function runEscalationWatchdog(): Promise<{
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   return getRepository().getDashboardMetrics();
+}
+
+export async function getTelegramLink(chatId: string): Promise<TelegramLink | null> {
+  return getRepository().getTelegramLink(chatId);
+}
+
+export async function setTelegramLink(
+  chatId: string,
+  employeeEmail: string
+): Promise<TelegramLink> {
+  return getRepository().setTelegramLink(chatId, employeeEmail);
 }

@@ -7,6 +7,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Clean up existing objects if recreating
+DROP TABLE IF EXISTS telegram_links CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS ticket_events CASCADE;
 DROP TABLE IF EXISTS tickets CASCADE;
@@ -59,7 +60,7 @@ CREATE TABLE tickets (
     requester_name TEXT NOT NULL,
     requester_email TEXT NOT NULL,
     requester_employee_id TEXT,
-    channel TEXT NOT NULL, -- Web Form, Email, WhatsApp, SMS, Instagram DM, Intercom Chat
+    channel TEXT NOT NULL, -- Web Form, Email, WhatsApp, SMS, Instagram DM, Intercom Chat, Telegram
     subject TEXT NOT NULL,
     description TEXT NOT NULL,
     category TEXT NOT NULL, -- HR, IT, Payroll, Operations, Other
@@ -145,3 +146,13 @@ ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ticket_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- 9. Telegram Links (Optional Omnichannel chat_id to employee mapping)
+CREATE TABLE telegram_links (
+    chat_id TEXT PRIMARY KEY,
+    employee_email TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX idx_telegram_links_email ON telegram_links(employee_email);
+ALTER TABLE telegram_links ENABLE ROW LEVEL SECURITY;
