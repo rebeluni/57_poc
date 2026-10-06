@@ -324,7 +324,7 @@ export default function SubmitRequestPage() {
                 Submit another request
               </button>
               <Link
-                href={`/track?id=${submissionResult.ticket.ticket_number}`}
+                href={`/track?id=${submissionResult.ticket.ticket_number}&email=${encodeURIComponent(submissionResult.ticket.requester_email)}`}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors"
               >
                 <span>View Live Status Timeline</span>

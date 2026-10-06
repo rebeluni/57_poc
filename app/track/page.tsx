@@ -235,7 +235,7 @@ function TrackContent() {
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   Submitted by {ticket.requester_name} ({ticket.requester_email}) on{' '}
-                  {new Date(ticket.created_at).toLocaleDateString('en-IN', {
+                  {new Date(ticket.created_at).toLocaleString('en-IN', {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}
@@ -411,7 +411,7 @@ function TrackContent() {
                 <span>Start: {new Date(ticket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 <span>
                   Resolution Target:{' '}
-                  {new Date(ticket.resolve_due_at).toLocaleDateString('en-IN', {
+                  {new Date(ticket.resolve_due_at).toLocaleString('en-IN', {
                     month: 'short',
                     day: 'numeric',
                     hour: '2-digit',
