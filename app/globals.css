@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 99%;
+    --foreground: 222 47% 11%;
+  }
+}
+
+body {
+  background-color: #FAFAFA;
+  color: #0F172A;
+  min-height: 100vh;
+}
+
+.font-serif-luxury {
+  font-family: var(--font-playfair), Georgia, 'Times New Roman', serif;
+}
+
+.font-sans-clean {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
