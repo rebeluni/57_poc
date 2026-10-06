@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PREFILL_EXAMPLES, SUPPORTED_CHANNELS, TicketChannel } from '@/lib/config';
+import { requireAdmin } from '@/lib/auth';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
+  }
   try {
     // Pick random example or randomize channel
     const randomExample = PREFILL_EXAMPLES[Math.floor(Math.random() * PREFILL_EXAMPLES.length)];

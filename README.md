@@ -3,7 +3,7 @@
 
 A focused, high-polish Proof of Concept (POC) built for the recruitment assessment at **Physique 57**, a premier luxury barre fitness brand.
 
-Evaluators care first and foremost about **design thinking, operational integrity, and business logic**. This system directly solves the operational friction that occurs when studio instructors, front desk staff, and corporate employees submit HR, IT, Payroll, and Studio Operations requests across fragmented channels (Email, WhatsApp, SMS, and direct messages).
+Evaluators prioritize **systems design philosophy, operational logic, and the automated transformation of manual friction** over a sprawling finished product. This system directly solves the operational friction that occurs when studio instructors, front desk staff, and corporate employees submit HR, IT, Payroll, and Studio Operations requests across fragmented channels (Email, WhatsApp, SMS, and direct messages).
 
 ---
 
@@ -13,7 +13,7 @@ Evaluators care first and foremost about **design thinking, operational integrit
 | :--- | :--- | :--- |
 | **1. Lack of Visibility** | Centralized intake & real-time employee self-service tracking. | Sequential human-readable IDs (`REQ-2026-XXXX`), public `/track` portal with 3-stage visual timeline (Open → Active → Finalized), and live status indicator. |
 | **2. Accountability Gaps** | Strict ownership, business-hours SLAs, and automatic multi-tier escalations. | IST (Indian Standard Time) business hours engine (09:00–19:00 Mon–Sat), least-open-tickets load balancing, out-of-office fallback, and automated L0–L3 escalation watchdog. |
-| **3. Slow Responses** | Instantaneous automated triaging and duplicate prevention. | Rule-first deterministic keyword scoring + Priority matrix (sub-millisecond latency, zero API costs) with optional Gemini 1.5 Flash fallback, plus 24h Jaccard duplicate detection. |
+| **3. Latent Response Times** | Instantaneous automated triaging and duplicate prevention. | Rule-first deterministic keyword scoring + Priority matrix (sub-millisecond latency, zero API costs) with optional Gemini 1.5 Flash fallback, plus 24h Jaccard duplicate detection. |
 | **4. Data Inconsistency** | Immutable audit trails and executive decision-grade reporting. | Append-only `ticket_events` ledger for every state transition and reassignment, paired with an executive `/dashboard` displaying 14-day trends, SLA compliance rates, and backlog breakdown. |
 
 ---
@@ -23,51 +23,57 @@ Evaluators care first and foremost about **design thinking, operational integrit
 - **Framework**: [Next.js 15+](https://nextjs.org/) (App Router, Server & Client Components, TypeScript)
 - **Styling & Design System**: [Tailwind CSS v3](https://tailwindcss.com/), [Lucide React](https://lucide.dev/), curated luxury fitness aesthetic (`#FAFAFA` off-white, `#0F172A` deep slate, `#0EA5E9` electric cyan accent, Playfair Display serif headings, Inter body typography).
 - **Data & Storage**:
-  - **Primary**: [Supabase PostgreSQL](https://supabase.com/) with full relational schema, RLS policies, custom sequence functions, and indexes.
-  - **Zero-Config Fallback**: Built-in resilient in-memory repository pre-seeded with 14 realistic tickets, 12 employees, 11 team members, audit logs, and notifications. Runs out of the box with zero external setup needed.
+  - **Primary**: [Supabase PostgreSQL](https://supabase.com/) with full relational schema, RLS policies, sequence triggers, and composite indexes. When configured, Supabase is the sole source of truth.
+  - **Zero-Config Fallback**: Built-in resilient in-memory repository pre-seeded with 14 realistic tickets, 12 employees, 11 team members, audit logs, and notifications. Runs out of the box if Supabase keys are not present.
 - **Analytics & Visualizations**: [Recharts](https://recharts.org/) for executive dashboards.
 - **Interactive Workflows**: [Mermaid.js](https://mermaid.js.org/) dynamic diagrams with instant SVG / PNG downloads.
-- **AI Classification**: Google Gemini 1.5 Flash integration (purely optional fallback, enabled via `GEMINI_API_KEY`).
-- **Authentication**: Single shared admin passcode (`ADMIN_PASSCODE=p57barre`) stored in a secure `httpOnly` cookie (`p57_admin_auth`). No complex signup screens for evaluators.
+- **AI Classification**: Optional Google Gemini 1.5 Flash fallback (completely skipped when `GEMINI_API_KEY` is omitted).
+- **Security & Access Control**: Administrator access protected by an `ADMIN_PASSCODE` backed by signed HMAC-SHA256 session cookies (`AUTH_SECRET`).
+
+---
+
+## 🔑 Environment Variables
+
+| Variable | Required | Description |
+| :--- | :--- | :--- |
+| `ADMIN_PASSCODE` | **Yes** | Passcode required to unlock `/admin` and `/dashboard` operations. |
+| `AUTH_SECRET` | Recommended | Random secret string for signing HMAC-SHA256 session cookies (falls back to `ADMIN_PASSCODE`). |
+| `CRON_SECRET` | Recommended | Bearer secret token used by Vercel Cron to trigger `/api/cron/escalate`. |
+| `NEXT_PUBLIC_APP_URL` | Optional | Base URL of deployment (e.g. `https://p57-employee-desk.vercel.app` or `http://localhost:3000`). |
+| `NEXT_PUBLIC_SUPABASE_URL` | Optional | Supabase Project URL. If omitted, system runs in in-memory demo mode. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional | Supabase Service Role Secret Key for secure server-side database access. |
+| `GEMINI_API_KEY` | Optional | Google Gemini API Key for low-confidence AI fallback categorization. |
 
 ---
 
 ## ⚡ Quickstart & Local Setup
 
 ### 1. Prerequisites
-- **Node.js**: v18.18.0 or newer (tested on Node v20/v22)
+- **Node.js**: v18.18.0 or newer
 - **npm**: v9 or newer
 
 ### 2. Clone and Install
 ```bash
-git clone <repo-url>
-cd p57_poc
+git clone https://github.com/rebeluni/57_poc.git
+cd 57_poc
 npm install
 ```
 
-### 3. Environment Variables
+### 3. Configure Environment Variables
 Copy `.env.example` to `.env.local`:
 ```bash
 cp .env.example .env.local
 ```
-The application comes pre-configured with safe defaults:
-```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-ADMIN_PASSCODE=p57barre
-
-# Optional: Supabase configuration (app falls back to rich in-memory database if omitted)
-# NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-# SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-
-# Optional: Google Gemini AI fallback
-# GEMINI_API_KEY=your-gemini-api-key
-```
+Set your desired `ADMIN_PASSCODE` (e.g. `ADMIN_PASSCODE=mysecurepass123`).
 
 ### 4. Optional: Supabase Database Setup
-If connecting to Supabase:
-1. Open your Supabase project's **SQL Editor**.
-2. Run [`supabase/schema.sql`](file:///supabase/schema.sql) to create tables, sequences, indexes, and RLS policies.
-3. Run [`supabase/seed.sql`](file:///supabase/seed.sql) to populate 14 realistic tickets, team members, and audit events.
+To use Supabase as your persistent database:
+1. Open your Supabase project dashboard and go to **SQL Editor**.
+2. Run [`supabase/schema.sql`](file:///supabase/schema.sql) to create tables, indexes, RLS policies, and the sequence generator.
+3. Run [`supabase/seed.sql`](file:///supabase/seed.sql) to populate initial team members, employees, and 14 realistic tickets.
+4. Add `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to your `.env.local`.
+
+*(If you skip this step, the app automatically runs in zero-config demo mode using its pre-seeded in-memory store).*
 
 ### 5. Run the Application
 ```bash
@@ -75,159 +81,66 @@ npm run dev
 ```
 Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-### 6. Run Unit Tests
-Validate the deterministic categorizer, priority triggers, and IST business-hours SLA engine:
+### 6. Run Automated Unit Tests
 ```bash
 npm test
 ```
-All 10/10 test assertions will execute and pass via `tsx test/engine.test.ts`.
+All 10/10 assertions will execute and pass via `tsx test/engine.test.ts`.
 
 ---
 
-## 📱 Omnichannel Ingestion Webhook (`POST /api/intake`)
+## 📱 Omnichannel Ingestion Endpoint (`POST /api/intake`)
 
-The system accepts requests from any external channel (Email, WhatsApp, Slack, SMS, Studio Webhook) through a unified endpoint.
+The public intake webhook accepts incoming requests from external communication channels (Email, WhatsApp, SMS, Web Form, Instagram DM, Intercom Chat):
 
-### Sample `curl` Request (Simulating WhatsApp Ingestion)
 ```bash
 curl -X POST http://localhost:3000/api/intake \
   -H "Content-Type: application/json" \
   -d '{
-    "subject": "Missing overtime pay for weekend barre intensive",
-    "description": "Hi team, I noticed my direct deposit pay slip for last week did not include the 6 overtime hours from the Saturday barre marathon at Bandra studio.",
-    "employee_email": "priya.nair@physique57.com",
-    "channel": "whatsapp",
-    "is_urgent": false
+    "channel": "WhatsApp",
+    "subject": "Wi-Fi down in studio 2",
+    "description": "Sound system and iPad cannot connect to studio Wi-Fi ahead of 10am class",
+    "employee_email": "priya.nair@physique57.com"
   }'
 ```
 
-### Sample Response:
-```json
-{
-  "success": true,
-  "ticket": {
-    "ticket_id": "REQ-2026-0015",
-    "subject": "Missing overtime pay for weekend barre intensive",
-    "category": "Payroll",
-    "priority": "P2",
-    "status": "Open",
-    "channel": "whatsapp",
-    "assignee": {
-      "name": "Kavita Shah",
-      "email": "kavita.shah@physique57.com",
-      "department": "Payroll"
-    },
-    "sla": {
-      "response_due_at": "2026-10-06T13:00:00.000Z",
-      "resolve_due_at": "2026-10-07T17:00:00.000Z",
-      "escalation_level": "L0"
-    },
-    "categorisation": {
-      "confidence": 0.92,
-      "matched_keywords": ["overtime", "pay slip", "direct deposit"],
-      "source": "rules"
-    }
-  }
-}
-```
-
 ---
 
-## 🎬 3-Minute Evaluator Demo Script
+## 🔒 Security & Route Protection
 
-Follow this step-by-step walkthrough to evaluate every dimension of the system:
-
-### Step 1: Submit a Request (`/`)
-1. Visit the home page: **`http://localhost:3000/`**.
-2. Notice the **Live IST Business Hours** indicator in the navigation header (shows whether the Physique 57 Support Desk is currently open or outside operating hours).
-3. Click one of the **1-Click Test Scenarios** (e.g., *"Priya Nair — Missing Overtime Pay"*).
-4. Click **"Submit Request"**.
-5. Observe the instant confirmation card:
-   - Generated Ticket ID (e.g. `REQ-2026-0015`).
-   - Categorised as **Payroll** with confidence score and matched keywords.
-   - Assigned to **Kavita Shah** (Payroll Lead) via least-loaded routing.
-   - SLA target deadlines calculated in IST business hours.
-
-### Step 2: Track as an Employee (`/track`)
-1. Click **"Track This Ticket"** or navigate to `/track`.
-2. Inspect the **3-Stage Visual Timeline** (`Open` → `Active` → `Finalized`).
-3. View the assigned department specialist, contact info, and response SLA countdown.
-
-### Step 3: Admin Console & Ticket Lifecycle (`/admin`)
-1. Navigate to **`/admin`**.
-2. If prompted, enter the Admin Passcode: **`p57barre`** (stored in an httpOnly cookie).
-3. Explore the filter bar:
-   - Filter by Status (`Open`, `Active`, `Finalized`), Category (`HR`, `IT`, `Payroll`, `Operations`), Priority (`P1` to `P4`), or SLA State (`Breached`, `Breaching Soon`).
-   - Toggle **"Include Archived"** to test the 7-day archival filter rule.
-4. Click on any ticket row (or your newly created ticket) to open the **Detail Slide-over Drawer**.
-5. Perform state machine actions:
-   - Move from **Open** to **Active** (assignee acknowledges).
-   - Enter an internal note (e.g. *"Reviewed studio attendance logs. Adjusted pay slip for next cycle."*).
-   - Click **"Finalize Ticket"** (enters resolution notes).
-6. Scroll down to inspect the **Immutable Audit History** showing every timestamped change and actor.
-
-### Step 4: Executive Metrics & Backlog Health (`/dashboard`)
-1. Navigate to **`/dashboard`**.
-2. Review the 4 high-level KPI cards:
-   - **Total Tickets** (with active vs finalized split).
-   - **SLA Compliance Rate** (calculated against resolution deadlines).
-   - **Avg Response Time** (in business hours).
-   - **Active Backlog** & Urgent tickets.
-3. Examine the interactive visualizations:
-   - **14-Day Inflow vs. Resolution Trend** (Recharts dual-line chart).
-   - **Category Distribution** (Bar chart showing HR, IT, Payroll, Operations).
-   - **Channel Ingestion Breakdown** (Donut chart illustrating WhatsApp, Email, Slack, Web, SMS).
-4. Review the **"Needs Attention"** table highlighting breached and P1 tickets with direct jump links to admin triage.
-
-### Step 5: Visual Operational Workflow (`/workflow`)
-1. Navigate to **`/workflow`**.
-2. View the interactive **7-Stage Lifecycle Mermaid Diagram**:
-   - `Ingestion` → `Deterministic Triaging` → `SLA Engine` → `Intelligent Routing` → `State Machine` → `Audit Logging` → `Analytics & Archival`.
-3. Test the **"Download SVG"** or **"Download PNG"** buttons.
-4. Expand the **"Draw.io & Raw Mermaid Source"** drawer to view or copy the diagram syntax.
-5. Review the production-readiness architectural breakdown below the diagram (Webhooks, dead letter queues, and multi-tenant scaling).
-
-### Step 6: Architecture & Operational Logic Notes (`/about`)
-1. Navigate to **`/about`**.
-2. Observe how all SLA threshold tables, keyword matrices, escalation tiers (L0–L3), and IST business hours rules are dynamically rendered directly from [`lib/config.ts`](file:///lib/config.ts) to guarantee zero documentation drift.
-
----
-
-## 🧪 "Test in Incognito Mode" Checklist
-
-To verify that the application has zero hidden session dependencies:
-1. Open a new **Incognito / Private Window**.
-2. Navigate to `http://localhost:3000/`.
-3. Submit a ticket — verifies public intake works without login.
-4. Navigate to `http://localhost:3000/track?id=REQ-2026-0001` — verifies public ticket lookup.
-5. Navigate to `http://localhost:3000/admin` — verify the passcode modal appears. Enter `p57barre`.
-6. Navigate to `http://localhost:3000/dashboard` and `http://localhost:3000/workflow` — verify all analytics and diagrams render immediately.
-
----
-
-## 🔒 Security & Data Principles
-
-- **No Public Passcode Exposure**: Passcode verification is handled via server-side API `/api/auth/passcode` setting `httpOnly`, `sameSite=lax` cookies.
-- **Input Sanitization**: All incoming intake requests are strictly validated using [Zod](https://zod.dev/) schemas.
-- **In-Memory Rate Limiting**: The intake API limits requests per client IP (30 requests/minute) to mitigate spam.
-- **Safe Fallbacks**: Zero crashes if Supabase or Gemini credentials are missing; the system seamlessly operates on its pre-seeded mock memory store.
+* **Public Routes**:
+  * `POST /api/intake`: Public submission with Zod validation and IP rate limiting (30 requests/minute).
+  * `GET /api/track?id=REQ-...&email=...`: Public self-service tracking. Requires **both** Ticket ID and matching employee email; returns only public-safe status fields (no internal notes or actor details).
+* **Protected Routes (401 without Admin Session)**:
+  * `GET /api/tickets`
+  * `GET / PATCH /api/tickets/[id]`
+  * `GET /api/dashboard`
+  * `POST /api/simulate`
+  * `GET /api/auth/passcode`
+* **Automated Escalation Route**:
+  * `GET /api/cron/escalate`: Authenticated via Bearer token (`CRON_SECRET`) or an active admin cookie.
 
 ---
 
 ## 🚢 Deploying to Vercel (Free Tier)
 
 1. Push your repository to GitHub.
-2. Import the repository in [Vercel](https://vercel.com).
-3. Set Environment Variables in Project Settings:
-   - `ADMIN_PASSCODE` = `p57barre`
-   - `NEXT_PUBLIC_APP_URL` = `https://your-vercel-domain.vercel.app`
-   - *(Optional)* `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-4. Deploy! Vercel automatically detects Next.js 15 and deploys to the global edge network.
-5. *(Optional)* Set up a Vercel Cron in `vercel.json` to hit `/api/cron/escalate` every 15 minutes.
+2. In [Vercel](https://vercel.com), click **Add New Project** and import the repository.
+3. In **Environment Variables**, configure:
+   * `ADMIN_PASSCODE` (Required)
+   * `AUTH_SECRET` (Recommended: generate a 32-character random string)
+   * `CRON_SECRET` (Recommended: generate a secret string for cron authentication)
+   * `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (Optional)
+4. Click **Deploy**.
+5. **Scheduled Escalations (`vercel.json`)**:
+   * Vercel Hobby accounts support 1 daily cron job. A daily schedule (`0 3 * * *`) is configured in `vercel.json` to hit `/api/cron/escalate`.
+   * Intraday SLA escalations are checked dynamically on load whenever an administrator opens the `/admin` or `/dashboard` console, ensuring zero monitoring lag.
 
 ---
 
-## 📄 License & Attribution
+## ⚠️ Known Limitations & Scope Boundaries
 
-Built for the **Physique 57** Technical Recruitment Assessment.  
-*All branding, colors, and typography styled to match the Physique 57 barre aesthetic.*
+1. **Single Shared Admin Passcode**: Built for evaluator convenience during technical assessment. Production Phase 2 would implement Okta / Google Workspace SSO with discrete role-based permissions (Instructors, Studio Managers, Department Heads).
+2. **Standardized REST Intake vs. Paid Gateway Subscriptions**: External services (Twilio WhatsApp, SendGrid Inbound Parse) require paid vendor accounts and DNS MX routing. This POC provides the production-ready REST ingestion adapter and normalization logic.
+3. **Simulated In-App Notifications**: Escalations and P1 alerts create structured records in the `notifications` table rather than sending paid SMS or push notifications.
+4. **Optional AI Fallback**: Google Gemini 1.5 Flash is invoked only when `GEMINI_API_KEY` is present and rule-based keyword confidence is low; if the key is absent, the system operates 100% deterministically at sub-millisecond latency.

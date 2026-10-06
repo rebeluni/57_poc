@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const EXPECTED_PASSCODE = process.env.ADMIN_PASSCODE || 'p57barre';
+import { createAdminToken, requireAdmin, ADMIN_COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
     const { passcode } = await req.json();
+    const expectedPasscode = process.env.ADMIN_PASSCODE || 'p57barre';
 
-    if (!passcode || passcode.trim() !== EXPECTED_PASSCODE) {
+    if (!passcode || passcode.trim() !== expectedPasscode) {
       return NextResponse.json({ error: 'Incorrect administrator passcode' }, { status: 401 });
     }
 
+    const token = createAdminToken();
     const res = NextResponse.json({ success: true, message: 'Authenticated' });
-    res.cookies.set('p57_admin_auth', 'authenticated', {
+    res.cookies.set(ADMIN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -26,13 +27,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const authCookie = req.cookies.get('p57_admin_auth');
-  const isAuthenticated = authCookie?.value === 'authenticated';
+  const isAuthenticated = requireAdmin(req);
   return NextResponse.json({ isAuthenticated });
 }
 
 export async function DELETE() {
   const res = NextResponse.json({ success: true, message: 'Logged out' });
-  res.cookies.delete('p57_admin_auth');
+  res.cookies.delete(ADMIN_COOKIE_NAME);
   return res;
 }

@@ -9,11 +9,15 @@ import {
   addInternalNote,
 } from '@/lib/db';
 import { DepartmentCategory, TicketPriority, TicketStatus } from '@/lib/config';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const ticket = await getTicketById(id);
@@ -39,6 +43,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
+  }
   try {
     const { id } = await params;
     const body = await req.json();

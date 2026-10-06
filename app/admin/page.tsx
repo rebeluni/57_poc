@@ -330,7 +330,7 @@ export default function AdminConsolePage() {
                 type="password"
                 required
                 autoFocus
-                placeholder="Enter passcode (default: p57barre)"
+                placeholder="Enter administrator passcode"
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
@@ -351,7 +351,7 @@ export default function AdminConsolePage() {
             </button>
 
             <p className="text-[11px] text-center text-slate-400">
-              Evaluator tip: Default configured passcode is <span className="font-mono font-semibold text-slate-700">p57barre</span>. Stored securely in an httpOnly cookie.
+              Access is protected via the <span className="font-mono font-semibold text-slate-700">ADMIN_PASSCODE</span> environment variable. Session is secured with an HMAC-signed httpOnly cookie.
             </p>
           </form>
         </div>

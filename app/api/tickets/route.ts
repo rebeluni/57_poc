@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTickets, runEscalationWatchdog } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
+  }
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || 'all';
@@ -21,7 +25,7 @@ export async function GET(req: NextRequest) {
       category,
       priority,
       channel,
-      assignee_id,
+      assigneeId: assignee_id,
       slaState,
       search,
       includeArchived,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { categorizeRequest, determinePriority } from '../lib/categoriser.ts';
-import { calculateSLADueDates, addBusinessHours, evaluateSLAState } from '../lib/sla.ts';
+import { categorizeRequest, determinePriority } from '../lib/categoriser';
+import { calculateSLADueDates, addBusinessHours, evaluateSLAState } from '../lib/sla';
 
 test('Categorisation Engine: Payroll query', () => {
   const result = categorizeRequest(

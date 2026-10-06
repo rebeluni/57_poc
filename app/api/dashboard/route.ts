@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDashboardMetrics, runEscalationWatchdog } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized. Admin session required.' }, { status: 401 });
+  }
   try {
     // Run watchdog prior to aggregating metrics
     await runEscalationWatchdog();

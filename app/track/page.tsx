@@ -27,51 +27,41 @@ function TrackContent() {
 
   const [ticketId, setTicketId] = useState(initialId);
   const [email, setEmail] = useState(initialEmail);
-  const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [events, setEvents] = useState<TicketEvent[]>([]);
+  const [ticket, setTicket] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchTicket = async (idToSearch: string, emailToSearch?: string) => {
     if (!idToSearch.trim()) return;
+    if (!emailToSearch || !emailToSearch.trim()) {
+      setTicket(null);
+      setErrorMessage('Please enter both your Ticket ID and your employee email to securely access your request.');
+      setSearched(true);
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
     setSearched(true);
 
     try {
-      // First try to look up ticket by number
-      const res = await fetch(`/api/tickets?search=${encodeURIComponent(idToSearch.trim())}`);
+      const res = await fetch(
+        `/api/track?id=${encodeURIComponent(idToSearch.trim())}&email=${encodeURIComponent(
+          emailToSearch.trim()
+        )}`
+      );
       const data = await res.json();
 
-      if (!res.ok || !data.tickets || data.tickets.length === 0) {
+      if (!res.ok || !data.ticket) {
         setTicket(null);
-        setErrorMessage(`No request found with ID "${idToSearch}". Please check the ticket number format (e.g. REQ-2026-0001).`);
+        setErrorMessage(
+          data.error ||
+            `No request found with ID "${idToSearch}" for email "${emailToSearch}". Please verify both values.`
+        );
         return;
       }
 
-      // Exact match ticket
-      const matched = data.tickets.find(
-        (t: Ticket) => t.ticket_number.toUpperCase() === idToSearch.trim().toUpperCase()
-      ) || data.tickets[0];
-
-      // If email provided, verify email matches
-      if (emailToSearch && emailToSearch.trim()) {
-        if (matched.requester_email.toLowerCase().trim() !== emailToSearch.toLowerCase().trim()) {
-          setTicket(null);
-          setErrorMessage('The email address provided does not match the requester on this ticket.');
-          return;
-        }
-      }
-
-      setTicket(matched);
-
-      // Fetch audit events
-      const detailRes = await fetch(`/api/tickets/${matched.id}`);
-      if (detailRes.ok) {
-        const detailData = await detailRes.json();
-        setEvents(detailData.events || []);
-      }
+      setTicket(data.ticket);
     } catch (err) {
       setErrorMessage('Failed to connect to the People Desk server. Please try again.');
     } finally {
@@ -322,7 +312,11 @@ function TrackContent() {
                   </div>
                   <p className="text-sm font-semibold text-slate-900">In Investigation</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {ticket.assignee ? `Owned by ${ticket.assignee.name}` : 'Awaiting team assignee'}
+                    {ticket.assignee_name
+                      ? `Owned by ${ticket.assignee_name}`
+                      : ticket.assignee
+                      ? `Owned by ${ticket.assignee.name}`
+                      : 'Awaiting team assignee'}
                   </p>
                   <p className="text-[11px] text-slate-400 mt-3 font-mono">
                     {ticket.first_response_at
@@ -439,41 +433,15 @@ function TrackContent() {
             </div>
           </div>
 
-          {/* Activity Audit Trail */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-900 mb-4 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              Activity Log & Audit Trail
+          {/* Verified Access Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-800 mb-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              Verified Employee Access
             </h3>
-
-            {events.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No historical events recorded yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {events.map((ev) => (
-                  <div key={ev.id} className="flex items-start gap-3 text-xs border-l-2 border-slate-200 pl-4 py-1">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-800">{ev.actor}</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono">
-                          {ev.action}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(ev.created_at).toLocaleString('en-IN', {
-                            timeZone: 'Asia/Kolkata',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      {ev.note && <p className="text-slate-600 mt-1">{ev.note}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <p className="text-xs text-slate-500 leading-relaxed">
+              This request timeline is authenticated for <span className="font-semibold text-slate-700">{email}</span>. Internal team triage notes and coordinator routing remain confidential to the operations queue. For inquiries regarding this ticket, reference ID <span className="font-mono font-semibold text-slate-800">{ticket.ticket_number}</span>.
+            </p>
           </div>
         </div>
       )}

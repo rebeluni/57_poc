@@ -38,7 +38,7 @@ This prototype demonstrates an **enterprise-grade, zero-licensing-overhead Emplo
 * **Database & Persistence Strategy:**
   * **Relational Schema (Supabase PostgreSQL):** Normalized relational structure (`employees`, `team_members`, `tickets`, `ticket_events`, `notifications`) with foreign key constraints, composite B-tree indexes, and Row-Level Security (RLS).
   * **Resilient Dual-Mode Repository:** Engineered with an automatic in-memory fallback pre-seeded with 14 realistic operational tickets. Reviewers can test the application in zero-configuration sandbox environments without cloud dependency failures.
-* **Access Control:** Employs an `ADMIN_PASSCODE` mechanism (`p57barre`) backed by server-side `httpOnly`, `sameSite=lax` session cookies. This eliminates authentication friction for external evaluators while keeping internal triage tools secure.
+* **Access Control:** Employs an `ADMIN_PASSCODE` mechanism backed by signed HMAC-SHA256 server-side `httpOnly`, `sameSite=lax` session cookies. This eliminates authentication friction for external evaluators while keeping internal triage tools secure.
 
 ### 3.2 Core Operational Mechanics
 1. **Human-Readable Alphanumeric Identifiers:** Every record generates a sequential, human-friendly reference format (`REQ-2026-XXXX`), ensuring clarity during verbal, SMS, or WhatsApp follow-ups.
@@ -114,7 +114,7 @@ Given expanded enterprise engineering resources, the solution scales across four
 ## 6. Verification & Evaluation Guide
 
 * **Live Prototype URL:** `https://your-vercel-domain.vercel.app` (or `http://localhost:3000`)
-* **Admin Passcode:** `p57barre`
+* **Admin Passcode:** Configured via `ADMIN_PASSCODE` environment variable (e.g. `p57barre`)
 * **Test Scenarios:** 6 pre-configured realistic operational test presets on the intake form (`/`).
 * **Workflow Visual:** High-resolution interactive 7-stage lifecycle diagram available at `/workflow`.
 * **Automated Test Suite:** 10/10 automated assertions passing via `npm test` (`tsx test/engine.test.ts`).
