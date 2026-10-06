@@ -183,25 +183,8 @@ export default function WorkflowPage() {
 
     async function renderMermaid() {
       try {
-        let mermaid: any = (window as any).mermaid;
-        if (!mermaid) {
-          await new Promise<void>((resolve, reject) => {
-            const existing = document.getElementById('mermaid-cdn-script');
-            if (existing) {
-              existing.addEventListener('load', () => resolve());
-              return;
-            }
-            const script = document.createElement('script');
-            script.id = 'mermaid-cdn-script';
-            script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error('Failed to load Mermaid from CDN'));
-            document.head.appendChild(script);
-          });
-          mermaid = (window as any).mermaid;
-        }
-
-        if (!mermaid) return;
+        const mermaidModule = await import('mermaid');
+        const mermaid = mermaidModule.default;
 
         mermaid.initialize({
           startOnLoad: false,
@@ -360,7 +343,18 @@ export default function WorkflowPage() {
 
         {/* Diagram SVG Container */}
         <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-x-auto min-h-[500px] flex items-center justify-center">
-          <div ref={mainDiagramRef} className="w-full text-center" />
+          {renderError ? (
+            <div className="w-full space-y-2 p-2">
+              <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                Mermaid render fallback: showing diagram source code below.
+              </p>
+              <pre className="p-4 rounded-xl bg-slate-900 text-slate-200 text-xs font-mono overflow-x-auto max-h-[460px] leading-relaxed text-left">
+                {MAIN_WORKFLOW_MERMAID}
+              </pre>
+            </div>
+          ) : (
+            <div ref={mainDiagramRef} className="w-full text-center" />
+          )}
         </div>
 
         {/* Collapsible Source Code */}
@@ -418,7 +412,18 @@ export default function WorkflowPage() {
 
         {/* Diagram SVG Container */}
         <div className="my-6 p-4 rounded-xl bg-slate-50/50 border border-slate-100 overflow-x-auto min-h-[300px] flex items-center justify-center">
-          <div ref={archDiagramRef} className="w-full text-center" />
+          {renderError ? (
+            <div className="w-full space-y-2 p-2">
+              <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                Mermaid render fallback: showing diagram source code below.
+              </p>
+              <pre className="p-4 rounded-xl bg-slate-900 text-slate-200 text-xs font-mono overflow-x-auto max-h-[360px] leading-relaxed text-left">
+                {ARCH_MERMAID}
+              </pre>
+            </div>
+          ) : (
+            <div ref={archDiagramRef} className="w-full text-center" />
+          )}
         </div>
 
         {/* Collapsible Source Code */}

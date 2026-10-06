@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
   // Check auth
   useEffect(() => {
-    fetch('/api/auth/passcode')
+    fetch('/api/auth/passcode', { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => setIsAuthenticated(data.isAuthenticated))
       .catch(() => setIsAuthenticated(false));
@@ -51,7 +51,11 @@ export default function DashboardPage() {
   const fetchMetrics = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/dashboard');
+      const res = await fetch('/api/dashboard', { cache: 'no-store' });
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        return;
+      }
       const data = await res.json();
       setMetrics(data);
     } catch (e) {
@@ -267,7 +271,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={metrics.volumeTrend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
+                    <XAxis dataKey="date" interval={2} tick={{ fontSize: 10, fill: '#64748B' }} />
                     <YAxis tick={{ fontSize: 10, fill: '#64748B' }} allowDecimals={false} />
                     <Tooltip
                       contentStyle={{
@@ -278,7 +282,7 @@ export default function DashboardPage() {
                       }}
                     />
                     <Line
-                      type="monotone"
+                      type="linear"
                       dataKey="submitted"
                       name="Submitted"
                       stroke="#0EA5E9"
@@ -286,7 +290,7 @@ export default function DashboardPage() {
                       dot={{ r: 3 }}
                     />
                     <Line
-                      type="monotone"
+                      type="linear"
                       dataKey="resolved"
                       name="Resolved"
                       stroke="#10B981"
@@ -346,10 +350,11 @@ export default function DashboardPage() {
                       paddingAngle={3}
                     >
                       {metrics.byChannel.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${entry.channel || index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
+                      formatter={(value: any, name: any) => [`${value} tickets`, name]}
                       contentStyle={{
                         backgroundColor: '#0F172A',
                         color: '#FFF',
@@ -362,9 +367,9 @@ export default function DashboardPage() {
               </div>
               <div className="flex flex-wrap justify-center gap-2 text-[10px] text-slate-600 mt-2">
                 {metrics.byChannel.map((ch: any, i: number) => (
-                  <span key={ch.channel} className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
-                    <span>{ch.channel}: {ch.count}</span>
+                  <span key={ch.channel || i} className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }}></span>
+                    <span>{ch.channel || ch.name}: {ch.count}</span>
                   </span>
                 ))}
               </div>
@@ -404,26 +409,35 @@ export default function DashboardPage() {
                 Department SLA Compliance %
               </h3>
               <div className="space-y-4 pt-2">
-                {metrics.complianceByDept.map((item: any) => (
-                  <div key={item.department}>
-                    <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
-                      <span>{item.department}</span>
-                      <span className="font-semibold text-slate-900">{item.compliancePercent}%</span>
+                {metrics.complianceByDept.map((item: any) => {
+                  const hasData = item.compliancePercent !== null && item.compliancePercent !== undefined;
+                  return (
+                    <div key={item.department}>
+                      <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
+                        <span>{item.department}</span>
+                        <span className="font-semibold text-slate-900">
+                          {hasData ? `${item.compliancePercent}%` : 'No data'}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        {hasData ? (
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              item.compliancePercent >= 90
+                                ? 'bg-emerald-500'
+                                : item.compliancePercent >= 70
+                                ? 'bg-amber-500'
+                                : 'bg-red-500'
+                            }`}
+                            style={{ width: `${item.compliancePercent}%` }}
+                          ></div>
+                        ) : (
+                          <div className="h-full rounded-full bg-slate-200" style={{ width: '0%' }}></div>
+                        )}
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          item.compliancePercent >= 90
-                            ? 'bg-emerald-500'
-                            : item.compliancePercent >= 75
-                            ? 'bg-sky-500'
-                            : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${item.compliancePercent}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

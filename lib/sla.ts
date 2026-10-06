@@ -3,7 +3,7 @@
 // SLA & Business Hours Calculation Engine (IST: 9:00 AM - 7:00 PM, Mon - Sat)
 // ==============================================================================
 
-import { BUSINESS_HOURS, SLA_CONFIG, TicketPriority, EscalationLevel } from './config';
+import { BUSINESS_HOURS, SLA_CONFIG, TicketPriority, EscalationLevel, TicketStatus } from './config';
 import { SLACalculationResult } from './types';
 
 /**
@@ -124,26 +124,57 @@ export function calculateSLADueDates(
 
 /**
  * Computes elapsed SLA percentage, state badge, and escalation level.
+ * For FINALIZED tickets:
+ * - Never shows "Breached" or an active countdown.
+ * - Compares resolved_at with resolve_due_at and returns "Met SLA" or "Resolved late by Xh Ym".
  */
 export function evaluateSLAState(
   createdAt: Date | string,
   dueAt: Date | string,
-  resolvedAt?: Date | string | null
+  resolvedAt?: Date | string | null,
+  status?: TicketStatus
 ): {
   elapsedPercent: number;
-  slaState: 'On Track' | 'Breaching Soon' | 'Breached';
+  slaState: 'On Track' | 'Breaching Soon' | 'Breached' | 'Met SLA' | 'Resolved Late';
   escalationLevel: EscalationLevel;
   timeRemainingStr: string;
 } {
   const start = new Date(createdAt).getTime();
   const target = new Date(dueAt).getTime();
-  const current = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
+  const isFinalized = status === 'finalized' || Boolean(resolvedAt);
 
+  if (isFinalized) {
+    const resolvedTime = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
+    const totalDuration = Math.max(1, target - start);
+    const elapsed = Math.max(0, resolvedTime - start);
+    const elapsedPercent = Math.round((elapsed / totalDuration) * 100);
+
+    const diffMs = resolvedTime - target;
+    if (diffMs <= 0) {
+      return {
+        elapsedPercent,
+        slaState: 'Met SLA',
+        escalationLevel: 'L0',
+        timeRemainingStr: 'Met SLA',
+      };
+    } else {
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      return {
+        elapsedPercent,
+        slaState: 'Resolved Late',
+        escalationLevel: 'L0',
+        timeRemainingStr: `Resolved late by ${hours}h ${minutes}m`,
+      };
+    }
+  }
+
+  // Active / Open ticket evaluation
+  const current = Date.now();
   const totalDuration = Math.max(1, target - start);
   const elapsed = Math.max(0, current - start);
   const elapsedPercent = Math.round((elapsed / totalDuration) * 100);
 
-  // Time remaining or breached
   const diffMs = target - current;
   const isBreached = diffMs <= 0;
 
@@ -152,9 +183,7 @@ export function evaluateSLAState(
   const hours = Math.floor(absDiff / (1000 * 60 * 60));
   const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
 
-  if (resolvedAt) {
-    timeRemainingStr = isBreached ? `Breached by ${hours}h ${minutes}m` : `Resolved within SLA`;
-  } else if (isBreached) {
+  if (isBreached) {
     timeRemainingStr = `Breached by ${hours}h ${minutes}m`;
   } else if (hours > 24) {
     const days = Math.floor(hours / 24);
@@ -187,3 +216,47 @@ export function evaluateSLAState(
     timeRemainingStr,
   };
 }
+
+/**
+ * Calculates SLA compliance percentage across finalized tickets.
+ * Compliance = finalized tickets resolved before/on resolve_due_at divided by all finalized tickets.
+ * Returns 100 if there are no finalized tickets.
+ */
+export function calculateSLACompliance(
+  tickets: Array<{
+    status: TicketStatus;
+    resolved_at?: string | null;
+    resolve_due_at: string;
+  }>
+): number {
+  const finalized = tickets.filter((t) => t.status === 'finalized');
+  if (finalized.length === 0) return 100;
+
+  const met = finalized.filter(
+    (t) =>
+      t.resolved_at &&
+      new Date(t.resolved_at).getTime() <= new Date(t.resolve_due_at).getTime()
+  ).length;
+
+  return Math.round((met / finalized.length) * 100);
+}
+
+/**
+ * Counts SLA breaches among open/active tickets past due.
+ */
+export function countSLABreaches(
+  tickets: Array<{
+    status: TicketStatus;
+    resolve_due_at: string;
+    sla_state?: string;
+  }>,
+  asOf: Date = new Date()
+): number {
+  const now = asOf.getTime();
+  return tickets.filter(
+    (t) =>
+      (t.status === 'open' || t.status === 'active') &&
+      now > new Date(t.resolve_due_at).getTime()
+  ).length;
+}
+

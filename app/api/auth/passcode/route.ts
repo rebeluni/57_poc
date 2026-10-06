@@ -37,9 +37,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const isAuthenticated = requireAdmin(req);
-  return NextResponse.json({ isAuthenticated });
+  return NextResponse.json(
+    { isAuthenticated },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      },
+    }
+  );
 }
 
 export async function DELETE() {

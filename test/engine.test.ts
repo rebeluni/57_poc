@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { categorizeRequest, determinePriority } from '../lib/categoriser';
-import { calculateSLADueDates, addBusinessHours, evaluateSLAState } from '../lib/sla';
+import {
+  calculateSLADueDates,
+  addBusinessHours,
+  evaluateSLAState,
+  calculateSLACompliance,
+  countSLABreaches,
+} from '../lib/sla';
 
 test('Categorisation Engine: Payroll query', () => {
   const result = categorizeRequest(
@@ -106,4 +112,61 @@ test('Telegram Adapter: Subject extraction first-line and 80-character limit', (
   const subject2 = longText.length > 80 ? longText.slice(0, 80) : longText;
   assert.strictEqual(subject2.length, 80);
 });
+
+test('SLA Consistency: Finalized tickets show Met SLA or Resolved late by Xh Ym, never Breached or countdown', () => {
+  const createdAt = '2026-10-01T09:00:00.000Z';
+  const resolveDueAt = '2026-10-02T13:00:00.000Z';
+
+  // Ticket resolved on time (before resolve_due_at)
+  const resolvedOnTime = '2026-10-02T11:00:00.000Z';
+  const metState = evaluateSLAState(createdAt, resolveDueAt, resolvedOnTime, 'finalized');
+  assert.strictEqual(metState.slaState, 'Met SLA');
+  assert.strictEqual(metState.timeRemainingStr, 'Met SLA');
+  assert.strictEqual(metState.escalationLevel, 'L0');
+
+  // Ticket resolved late (after resolve_due_at by 2 hours and 30 minutes)
+  const resolvedLate = new Date(new Date(resolveDueAt).getTime() + (2 * 3600 + 30 * 60) * 1000).toISOString();
+  const lateState = evaluateSLAState(createdAt, resolveDueAt, resolvedLate, 'finalized');
+  assert.strictEqual(lateState.slaState, 'Resolved Late');
+  assert.strictEqual(lateState.timeRemainingStr, 'Resolved late by 2h 30m');
+  assert.strictEqual(lateState.escalationLevel, 'L0');
+  assert.notStrictEqual(lateState.slaState, 'Breached');
+  assert.ok(!lateState.timeRemainingStr.includes('remaining'));
+});
+
+test('SLA Compliance & Breaches calculation: uses consistent definitions', () => {
+  const tickets: any[] = [
+    // Finalized ticket resolved on time
+    {
+      status: 'finalized',
+      resolve_due_at: '2026-10-02T12:00:00.000Z',
+      resolved_at: '2026-10-02T10:00:00.000Z',
+    },
+    // Finalized ticket resolved late
+    {
+      status: 'finalized',
+      resolve_due_at: '2026-10-02T12:00:00.000Z',
+      resolved_at: '2026-10-02T15:00:00.000Z',
+    },
+    // Open ticket past due (breached)
+    {
+      status: 'open',
+      resolve_due_at: '2026-10-01T12:00:00.000Z',
+    },
+    // Active ticket not past due
+    {
+      status: 'active',
+      resolve_due_at: '2026-10-10T12:00:00.000Z',
+    },
+  ];
+
+  // 1 out of 2 finalized resolved on time -> 50%
+  const compliance = calculateSLACompliance(tickets);
+  assert.strictEqual(compliance, 50);
+
+  // 1 open ticket past due as of 2026-10-05 -> 1 breach
+  const breaches = countSLABreaches(tickets, new Date('2026-10-05T12:00:00.000Z'));
+  assert.strictEqual(breaches, 1);
+});
+
 

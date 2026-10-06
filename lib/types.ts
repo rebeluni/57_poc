@@ -56,7 +56,7 @@ export interface Ticket {
   created_at: string;
   updated_at: string;
   // Computed fields for UI convenience
-  sla_state?: 'On Track' | 'Breaching Soon' | 'Breached';
+  sla_state?: 'On Track' | 'Breaching Soon' | 'Breached' | 'Met SLA' | 'Resolved Late';
   sla_elapsed_percent?: number;
   time_remaining_str?: string;
 }

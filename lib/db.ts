@@ -34,7 +34,7 @@ import {
   TicketEvent,
   NotificationItem,
 } from './types';
-import { evaluateSLAState } from './sla';
+import { evaluateSLAState, calculateSLACompliance, countSLABreaches } from './sla';
 
 export interface TicketFilters {
   status?: string;
@@ -59,11 +59,35 @@ export interface DashboardMetrics {
     avgResponseHours: string;
     avgResolveHours: string;
   };
-  byDepartment: { name: string; count: number }[];
-  byChannel: { name: string; count: number }[];
-  byPriority: { name: string; count: number }[];
-  volumeTrend: { date: string; created: number; resolved: number }[];
-  complianceByDept: { department: string; rate: number }[];
+  byDepartment: {
+    department: DepartmentCategory;
+    name: DepartmentCategory;
+    open: number;
+    breached: number;
+    count: number;
+  }[];
+  byChannel: {
+    channel: string;
+    name: string;
+    count: number;
+  }[];
+  byPriority: {
+    priority: TicketPriority;
+    name: TicketPriority;
+    count: number;
+  }[];
+  volumeTrend: {
+    date: string;
+    submitted: number;
+    created: number;
+    resolved: number;
+  }[];
+  complianceByDept: {
+    department: DepartmentCategory;
+    compliancePercent: number | null;
+    rate: number | null;
+    resolvedCount: number;
+  }[];
   needsAttention: Ticket[];
 }
 
@@ -72,7 +96,7 @@ export interface DashboardMetrics {
  */
 export function enrichTicket(ticket: Ticket, teamMembers: TeamMember[]): Ticket {
   const assignee = teamMembers.find((m) => m.id === ticket.assignee_id) || null;
-  const sla = evaluateSLAState(ticket.created_at, ticket.resolve_due_at, ticket.resolved_at);
+  const sla = evaluateSLAState(ticket.created_at, ticket.resolve_due_at, ticket.resolved_at, ticket.status);
 
   return {
     ...ticket,
@@ -637,7 +661,7 @@ class MemoryRepo implements TicketRepository {
 
     for (const ticket of db.tickets) {
       if (ticket.status === 'open' || ticket.status === 'active') {
-        const sla = evaluateSLAState(ticket.created_at, ticket.resolve_due_at, ticket.resolved_at);
+        const sla = evaluateSLAState(ticket.created_at, ticket.resolve_due_at, ticket.resolved_at, ticket.status);
         const oldLevel = ticket.escalation_level;
         let newLevel: EscalationLevel = 'L0';
 
@@ -710,23 +734,12 @@ class MemoryRepo implements TicketRepository {
     const open = tickets.filter((t) => t.status === 'open').length;
     const active = tickets.filter((t) => t.status === 'active').length;
     const finalized = tickets.filter((t) => t.status === 'finalized').length;
-    const breached = tickets.filter(
-      (t) => (t.status === 'open' || t.status === 'active') && t.sla_state === 'Breached'
-    ).length;
+    const breached = countSLABreaches(tickets);
     const breachingSoon = tickets.filter(
       (t) => (t.status === 'open' || t.status === 'active') && t.sla_state === 'Breaching Soon'
     ).length;
 
-    const finalizedWithSla = tickets.filter((t) => t.status === 'finalized');
-    const withinSlaCount = finalizedWithSla.filter(
-      (t) =>
-        t.resolved_at &&
-        new Date(t.resolved_at).getTime() <= new Date(t.resolve_due_at).getTime()
-    ).length;
-    const slaCompliancePercent =
-      finalizedWithSla.length > 0
-        ? Math.round((withinSlaCount / finalizedWithSla.length) * 100)
-        : 100;
+    const slaCompliancePercent = calculateSLACompliance(tickets);
 
     let totalResponseHours = 0;
     let responseCount = 0;
@@ -749,17 +762,29 @@ class MemoryRepo implements TicketRepository {
       }
     });
 
-    const byDepartment = DEPARTMENT_CATEGORIES.map((dept) => ({
-      name: dept,
-      count: tickets.filter((t) => t.category === dept).length,
-    }));
+    const byDepartment = DEPARTMENT_CATEGORIES.map((dept) => {
+      const deptTickets = tickets.filter((t) => t.category === dept);
+      const openCount = deptTickets.filter((t) => t.status === 'open' || t.status === 'active').length;
+      const breachedCount = deptTickets.filter(
+        (t) => (t.status === 'open' || t.status === 'active') && t.sla_state === 'Breached'
+      ).length;
+      return {
+        department: dept,
+        name: dept,
+        open: openCount,
+        breached: breachedCount,
+        count: deptTickets.length,
+      };
+    });
 
     const byChannel = SUPPORTED_CHANNELS.map((ch) => ({
+      channel: ch,
       name: ch,
       count: tickets.filter((t) => t.channel === ch).length,
     }));
 
     const byPriority = (['P1', 'P2', 'P3', 'P4'] as TicketPriority[]).map((pri) => ({
+      priority: pri,
       name: pri,
       count: tickets.filter((t) => t.priority === pri).length,
     }));
@@ -787,6 +812,7 @@ class MemoryRepo implements TicketRepository {
 
     const volumeTrend = Array.from(volumeMap.entries()).map(([date, counts]) => ({
       date,
+      submitted: counts.created,
       created: counts.created,
       resolved: counts.resolved,
     }));
@@ -795,13 +821,26 @@ class MemoryRepo implements TicketRepository {
       const deptFinalized = tickets.filter(
         (t) => t.category === dept && t.status === 'finalized'
       );
-      if (deptFinalized.length === 0) return { department: dept, rate: 100 };
+      if (deptFinalized.length === 0) {
+        return {
+          department: dept,
+          compliancePercent: null,
+          rate: null,
+          resolvedCount: 0,
+        };
+      }
       const met = deptFinalized.filter(
         (t) =>
           t.resolved_at &&
           new Date(t.resolved_at).getTime() <= new Date(t.resolve_due_at).getTime()
       ).length;
-      return { department: dept, rate: Math.round((met / deptFinalized.length) * 100) };
+      const pct = Math.round((met / deptFinalized.length) * 100);
+      return {
+        department: dept,
+        compliancePercent: pct,
+        rate: pct,
+        resolvedCount: deptFinalized.length,
+      };
     });
 
     const needsAttention = tickets
@@ -1390,7 +1429,7 @@ class SupabaseRepo implements TicketRepository {
     }
 
     for (const ticket of activeTickets || []) {
-      const sla = evaluateSLAState(ticket.created_at, ticket.resolve_due_at, ticket.resolved_at);
+      const sla = evaluateSLAState(ticket.created_at, ticket.resolve_due_at, ticket.resolved_at, ticket.status);
       const oldLevel = ticket.escalation_level;
       let newLevel: EscalationLevel = 'L0';
 
@@ -1493,23 +1532,12 @@ class SupabaseRepo implements TicketRepository {
     const open = tickets.filter((t) => t.status === 'open').length;
     const active = tickets.filter((t) => t.status === 'active').length;
     const finalized = tickets.filter((t) => t.status === 'finalized').length;
-    const breached = tickets.filter(
-      (t) => (t.status === 'open' || t.status === 'active') && t.sla_state === 'Breached'
-    ).length;
+    const breached = countSLABreaches(tickets);
     const breachingSoon = tickets.filter(
       (t) => (t.status === 'open' || t.status === 'active') && t.sla_state === 'Breaching Soon'
     ).length;
 
-    const finalizedWithSla = tickets.filter((t) => t.status === 'finalized');
-    const withinSlaCount = finalizedWithSla.filter(
-      (t) =>
-        t.resolved_at &&
-        new Date(t.resolved_at).getTime() <= new Date(t.resolve_due_at).getTime()
-    ).length;
-    const slaCompliancePercent =
-      finalizedWithSla.length > 0
-        ? Math.round((withinSlaCount / finalizedWithSla.length) * 100)
-        : 100;
+    const slaCompliancePercent = calculateSLACompliance(tickets);
 
     let totalResponseHours = 0;
     let responseCount = 0;
@@ -1532,17 +1560,29 @@ class SupabaseRepo implements TicketRepository {
       }
     });
 
-    const byDepartment = DEPARTMENT_CATEGORIES.map((dept) => ({
-      name: dept,
-      count: tickets.filter((t) => t.category === dept).length,
-    }));
+    const byDepartment = DEPARTMENT_CATEGORIES.map((dept) => {
+      const deptTickets = tickets.filter((t) => t.category === dept);
+      const openCount = deptTickets.filter((t) => t.status === 'open' || t.status === 'active').length;
+      const breachedCount = deptTickets.filter(
+        (t) => (t.status === 'open' || t.status === 'active') && t.sla_state === 'Breached'
+      ).length;
+      return {
+        department: dept,
+        name: dept,
+        open: openCount,
+        breached: breachedCount,
+        count: deptTickets.length,
+      };
+    });
 
     const byChannel = SUPPORTED_CHANNELS.map((ch) => ({
+      channel: ch,
       name: ch,
       count: tickets.filter((t) => t.channel === ch).length,
     }));
 
     const byPriority = (['P1', 'P2', 'P3', 'P4'] as TicketPriority[]).map((pri) => ({
+      priority: pri,
       name: pri,
       count: tickets.filter((t) => t.priority === pri).length,
     }));
@@ -1570,6 +1610,7 @@ class SupabaseRepo implements TicketRepository {
 
     const volumeTrend = Array.from(volumeMap.entries()).map(([date, counts]) => ({
       date,
+      submitted: counts.created,
       created: counts.created,
       resolved: counts.resolved,
     }));
@@ -1578,13 +1619,26 @@ class SupabaseRepo implements TicketRepository {
       const deptFinalized = tickets.filter(
         (t) => t.category === dept && t.status === 'finalized'
       );
-      if (deptFinalized.length === 0) return { department: dept, rate: 100 };
+      if (deptFinalized.length === 0) {
+        return {
+          department: dept,
+          compliancePercent: null,
+          rate: null,
+          resolvedCount: 0,
+        };
+      }
       const met = deptFinalized.filter(
         (t) =>
           t.resolved_at &&
           new Date(t.resolved_at).getTime() <= new Date(t.resolve_due_at).getTime()
       ).length;
-      return { department: dept, rate: Math.round((met / deptFinalized.length) * 100) };
+      const pct = Math.round((met / deptFinalized.length) * 100);
+      return {
+        department: dept,
+        compliancePercent: pct,
+        rate: pct,
+        resolvedCount: deptFinalized.length,
+      };
     });
 
     const needsAttention = tickets

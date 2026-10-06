@@ -87,7 +87,7 @@ export default function AdminConsolePage() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/passcode');
+        const res = await fetch('/api/auth/passcode', { cache: 'no-store' });
         const data = await res.json();
         setIsAuthenticated(data.isAuthenticated);
       } catch {
@@ -478,6 +478,8 @@ export default function AdminConsolePage() {
               <option value="On Track">On Track</option>
               <option value="Breaching Soon">Breaching Soon (≥80%)</option>
               <option value="Breached">Breached (100%+)</option>
+              <option value="Met SLA">Met SLA</option>
+              <option value="Resolved Late">Resolved Late</option>
             </select>
           </div>
         </div>
@@ -543,9 +545,10 @@ export default function AdminConsolePage() {
         </div>
       </div>
 
-      {/* Tickets Queue Table */}
+      {/* Tickets Queue Table & Mobile Stacked Cards */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop / Tablet Table View (>= 768px) with sticky right Action column */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/60 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -556,7 +559,9 @@ export default function AdminConsolePage() {
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Assignee</th>
                 <th className="py-3 px-4">SLA State</th>
-                <th className="py-3 px-4 text-right">Action</th>
+                <th className="py-3 px-4 text-right sticky right-0 bg-slate-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -577,7 +582,7 @@ export default function AdminConsolePage() {
                   <tr
                     key={t.id}
                     onClick={() => openTicketDrawer(t)}
-                    className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                    className="hover:bg-slate-50/80 cursor-pointer transition-colors group"
                   >
                     {/* ID + Channel */}
                     <td className="py-3.5 px-4 font-mono font-semibold text-slate-900 whitespace-nowrap">
@@ -662,7 +667,7 @@ export default function AdminConsolePage() {
                           className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                             t.sla_state === 'Breached'
                               ? 'bg-red-100 text-red-800'
-                              : t.sla_state === 'Breaching Soon'
+                              : t.sla_state === 'Breaching Soon' || t.sla_state === 'Resolved Late'
                               ? 'bg-amber-100 text-amber-800'
                               : 'bg-emerald-50 text-emerald-800'
                           }`}
@@ -689,8 +694,8 @@ export default function AdminConsolePage() {
                       </div>
                     </td>
 
-                    {/* Action Arrow */}
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                    {/* Sticky Action Arrow */}
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50/80 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">
                       <ChevronRight className="w-4 h-4 text-slate-400 inline" />
                     </td>
                   </tr>
@@ -698,6 +703,99 @@ export default function AdminConsolePage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Stacked Card View (< 768px) */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {loading ? (
+            <div className="py-12 text-center text-slate-400 text-xs">
+              Loading queue records...
+            </div>
+          ) : sortedTickets.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs">
+              No tickets match the selected filters.
+            </div>
+          ) : (
+            sortedTickets.map((t) => (
+              <div
+                key={t.id}
+                onClick={() => openTicketDrawer(t)}
+                className="p-4 space-y-2.5 hover:bg-slate-50/80 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-slate-900">
+                    <span>{t.ticket_number}</span>
+                    <span className="text-[10px] font-sans font-normal text-slate-400">· {t.channel}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        t.priority === 'P1'
+                          ? 'bg-red-100 text-red-800'
+                          : t.priority === 'P2'
+                          ? 'bg-amber-100 text-amber-800'
+                          : t.priority === 'P3'
+                          ? 'bg-sky-100 text-sky-800'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {t.priority}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                        t.status === 'finalized'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : t.status === 'active'
+                          ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      {t.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-slate-900 line-clamp-2">{t.subject}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {t.requester_name} · <span className="text-slate-600 font-medium">{t.category}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        t.sla_state === 'Breached'
+                          ? 'bg-red-100 text-red-800'
+                          : t.sla_state === 'Breaching Soon' || t.sla_state === 'Resolved Late'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-50 text-emerald-800'
+                      }`}
+                    >
+                      {t.sla_state}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {t.time_remaining_str}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openTicketDrawer(t);
+                    }}
+                    className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <span>Open</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -1095,7 +1193,7 @@ export default function AdminConsolePage() {
                   <div className="flex flex-wrap gap-1 mt-1">
                     {selectedTicket.matched_keywords && selectedTicket.matched_keywords.length > 0 ? (
                       selectedTicket.matched_keywords.map((kw, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded bg-slate-200 text-slate-800 text-[10px]">
+                        <span key={`${kw}-${i}`} className="px-2 py-0.5 rounded bg-slate-200 text-slate-800 text-[10px]">
                           #{kw}
                         </span>
                       ))
@@ -1151,8 +1249,8 @@ export default function AdminConsolePage() {
                   Audit Trail & History
                 </span>
                 <div className="space-y-3">
-                  {ticketEvents.map((ev) => (
-                    <div key={ev.id} className="text-xs border-l-2 border-slate-200 pl-3 py-1">
+                  {ticketEvents.map((ev, i) => (
+                    <div key={ev.id || `event-${i}`} className="text-xs border-l-2 border-slate-200 pl-3 py-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-slate-800">{ev.actor}</span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono">
