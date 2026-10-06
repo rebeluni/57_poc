@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     await sendTelegramMessage(
       botToken,
       chatId,
-      `Welcome to Physique 57 Support Desk! 🏋️‍♀️\n\nPlease link your employee account:\n/link ananya.sharma@physique57.in\n\nCommands:\n• /link <email> - Connect your work account\n• /status <REQ-ID> - Check ticket status & SLA\n• Any message - Create a support ticket automatically\n\n🌐 Web App Portal:\n${baseUrl}`
+      `Welcome to Physique 57 Support Desk! 🏋️‍♀️\n\nPlease link your email to get started:\n/link yourname@gmail.com\n\nCommands:\n• /link <email> - Connect any email (work or personal)\n• /status <REQ-ID> - Check ticket status & SLA\n• Any message - Create a support ticket automatically\n\n🌐 Web App Portal:\n${baseUrl}`
     );
     return NextResponse.json({ ok: true });
   }
@@ -121,19 +121,19 @@ export async function POST(req: NextRequest) {
     await sendTelegramMessage(
       botToken,
       chatId,
-      `Physique 57 Support Desk Commands:\n• /link <email> - Link your Telegram account with your work email (e.g. /link ananya.sharma@physique57.in)\n• /status <REQ-ID> - Check the status of your ticket\n• Send any message - Automatically creates a support ticket\n\n🌐 Web App Portal:\n${baseUrl}`
+      `Physique 57 Support Desk Commands:\n• /link <email> - Link your Telegram account with any email (e.g. /link yourname@gmail.com)\n• /status <REQ-ID> - Check the status of your ticket\n• Send any message - Automatically creates a support ticket\n\n🌐 Web App Portal:\n${baseUrl}`
     );
     return NextResponse.json({ ok: true });
   }
 
-  // 3. /link <email> command
+  // 3. /link <email> command (allows any email address during testing)
   if (text.startsWith('/link')) {
     const rawEmail = text.replace(/^\/link\s*/i, '').trim().toLowerCase();
     if (!rawEmail || !rawEmail.includes('@')) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        'Please provide a valid employee email address.\nExample: /link ananya.sharma@physique57.in'
+        'Please provide a valid email address.\nExample: /link yourname@gmail.com'
       );
       return NextResponse.json({ ok: true });
     }
@@ -143,20 +143,16 @@ export async function POST(req: NextRequest) {
       (e) => e.email.toLowerCase().trim() === rawEmail
     );
 
-    if (!matchedEmployee) {
-      await sendTelegramMessage(
-        botToken,
-        chatId,
-        `Email '${rawEmail}' was not found in the employee directory. Please use your registered Physique 57 work email (e.g. ananya.sharma@physique57.in).`
-      );
-      return NextResponse.json({ ok: true });
-    }
+    const telegramUserName = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(' ');
+    const displayName = matchedEmployee
+      ? matchedEmployee.name
+      : (telegramUserName || rawEmail.split('@')[0]);
 
-    await setTelegramLink(chatIdStr, matchedEmployee.email);
+    await setTelegramLink(chatIdStr, rawEmail);
     await sendTelegramMessage(
       botToken,
       chatId,
-      `✅ Account linked successfully to ${matchedEmployee.name} (${matchedEmployee.email})!\n\nYou can now send any message here to create support tickets or use /status <REQ-ID> to track progress.`
+      `✅ Account linked successfully to ${displayName} (${rawEmail})!\n\nYou can now send any message here to create support tickets or use /status <REQ-ID> to track progress.`
     );
     return NextResponse.json({ ok: true });
   }
@@ -226,18 +222,21 @@ export async function POST(req: NextRequest) {
     await sendTelegramMessage(
       botToken,
       chatId,
-      'Please link your account first:\n/link ananya.sharma@physique57.in'
+      'Please link your email first to submit requests:\n/link yourname@gmail.com'
     );
     return NextResponse.json({ ok: true });
   }
 
-  // Resolve employee metadata
+  // Resolve employee metadata if registered
   const employees = await getAllEmployees();
   const emp = employees.find(
     (e) => e.email.toLowerCase().trim() === linkedAccount.employee_email.toLowerCase().trim()
   );
 
-  const senderName = emp ? emp.name : 'Telegram User';
+  const telegramUserName = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(' ');
+  const senderName = emp
+    ? emp.name
+    : (telegramUserName || linkedAccount.employee_email.split('@')[0] || 'Telegram User');
   const senderEmail = linkedAccount.employee_email;
   const senderEmployeeId = emp ? emp.employee_code : null;
 
