@@ -3,10 +3,17 @@ import { createAdminToken, requireAdmin, ADMIN_COOKIE_NAME } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { passcode } = await req.json();
-    const expectedPasscode = process.env.ADMIN_PASSCODE || 'p57barre';
+    const expectedPasscode = process.env.ADMIN_PASSCODE;
+    if (!expectedPasscode || !expectedPasscode.trim()) {
+      return NextResponse.json(
+        { error: 'ADMIN_PASSCODE is not configured' },
+        { status: 500 }
+      );
+    }
 
-    if (!passcode || passcode.trim() !== expectedPasscode) {
+    const { passcode } = await req.json();
+
+    if (!passcode || passcode.trim() !== expectedPasscode.trim()) {
       return NextResponse.json({ error: 'Incorrect administrator passcode' }, { status: 401 });
     }
 
@@ -21,8 +28,12 @@ export async function POST(req: NextRequest) {
     });
 
     return res;
-  } catch (error) {
-    return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error during passcode authentication:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Authentication failed' },
+      { status: 500 }
+    );
   }
 }
 

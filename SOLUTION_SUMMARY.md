@@ -114,7 +114,7 @@ Given expanded enterprise engineering resources, the solution scales across four
 ## 6. Verification & Evaluation Guide
 
 * **Live Prototype URL:** `https://your-vercel-domain.vercel.app` (or `http://localhost:3000`)
-* **Admin Passcode:** Configured via `ADMIN_PASSCODE` environment variable (e.g. `p57barre`)
+* **Admin Passcode:** Configured via `ADMIN_PASSCODE` environment variable
 * **Test Scenarios:** 6 pre-configured realistic operational test presets on the intake form (`/`).
 * **Workflow Visual:** High-resolution interactive 7-stage lifecycle diagram available at `/workflow`.
 * **Automated Test Suite:** 10/10 automated assertions passing via `npm test` (`tsx test/engine.test.ts`).
