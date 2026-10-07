@@ -37,8 +37,14 @@ function formatIST(dateIso: string): string {
 }
 
 function getAppBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (
+    envUrl &&
+    !envUrl.includes('localhost') &&
+    !envUrl.includes('temp.vercel.app') &&
+    !envUrl.includes('placeholder')
+  ) {
+    return envUrl.replace(/\/+$/, '');
   }
   return 'https://57-poc.vercel.app';
 }
