@@ -40,16 +40,7 @@ function getAppBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('localhost')) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
   }
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/+$/, '')}`;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL.replace(/\/+$/, '')}`;
-  }
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '');
-  }
-  return 'http://localhost:3000';
+  return 'https://57-poc.vercel.app';
 }
 
 async function sendTelegramMessage(botToken: string, chatId: number | string, text: string) {
