@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   Sparkles,
+  Send,
+  ExternalLink,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -69,13 +71,27 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Live System Badge */}
-          <div className="hidden lg:flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-            </span>
-            <span>IST Business Hours Active</span>
+          {/* Live System Badge & Telegram Button */}
+          <div className="hidden lg:flex items-center gap-2">
+            <a
+              href="https://t.me/p57_helpBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200/80 transition-colors shadow-2xs"
+              title="Open @p57_helpBot on Telegram"
+            >
+              <Send className="w-3 h-3 text-sky-500" />
+              <span>Telegram Bot</span>
+              <ExternalLink className="w-2.5 h-2.5 text-sky-400" />
+            </a>
+
+            <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+              </span>
+              <span>IST Business Hours Active</span>
+            </div>
           </div>
 
           {/* Mobile menu button */}
@@ -111,6 +127,21 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          <div className="pt-2 border-t border-slate-100">
+            <a
+              href="https://t.me/p57_helpBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-3 py-2 rounded-lg bg-sky-50 text-sky-800 text-sm font-semibold border border-sky-200"
+            >
+              <span className="flex items-center gap-2">
+                <Send className="w-4 h-4 text-sky-600" />
+                <span>Open Telegram Bot (@p57_helpBot)</span>
+              </span>
+              <ExternalLink className="w-3.5 h-3.5 text-sky-500" />
+            </a>
+          </div>
         </div>
       )}
     </header>
