@@ -33,24 +33,24 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-stone-200/80 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
           {/* Brand Wordmark */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white font-serif-luxury text-sm font-semibold tracking-wider group-hover:bg-sky-500 transition-colors">
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+            <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white font-serif-luxury text-sm font-semibold tracking-wider group-hover:bg-sky-500 transition-colors shrink-0">
               57
             </div>
-            <div className="flex flex-col">
-              <span className="font-serif-luxury text-lg tracking-tight font-semibold text-slate-900 group-hover:text-sky-600 transition-colors">
+            <div className="flex flex-col whitespace-nowrap">
+              <span className="font-serif-luxury text-base sm:text-lg tracking-tight font-semibold text-slate-900 group-hover:text-sky-600 transition-colors leading-tight">
                 Physique 57 <span className="font-sans-clean font-light text-slate-400">·</span> People Desk
               </span>
-              <span className="text-[10px] tracking-widest uppercase font-medium text-slate-400 -mt-0.5">
+              <span className="text-[9px] sm:text-[10px] tracking-wider uppercase font-medium text-slate-400 leading-tight mt-0.5">
                 Internal Operations & Helpdesk
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
+          <nav className="hidden md:flex items-center space-x-0.5 lg:space-x-1.5 shrink-0">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -58,7 +58,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-slate-900 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -72,12 +72,12 @@ export default function Navbar() {
           </nav>
 
           {/* Live System Badge & Telegram Button */}
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
             <a
               href="https://t.me/p57_helpBot"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200/80 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-2.5 lg:px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200/80 transition-colors shadow-2xs whitespace-nowrap"
               title="Open @p57_helpBot on Telegram"
             >
               <Send className="w-3 h-3 text-sky-500" />
@@ -85,7 +85,7 @@ export default function Navbar() {
               <ExternalLink className="w-2.5 h-2.5 text-sky-400" />
             </a>
 
-            <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full">
+            <div className="hidden xl:flex items-center gap-2 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full whitespace-nowrap">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
